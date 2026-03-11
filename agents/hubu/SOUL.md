@@ -72,10 +72,17 @@ python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1�
 python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
 ```
 
-### 📝 完成子任务时上报详情（推荐！）
+### 📝 产出上报（必做！）
+
+> 🚨 **完成任务后必须用 `todo --detail` 上报具体产出，否则皇上在看板上看不到你的工作成果！**
+> 同时必须用 `done` 命令写入最终产出，这是看板展示结果的唯一数据来源。
+
 ```bash
-# 完成任务后，上报具体产出
-python3 scripts/kanban_update.py todo JJC-xxx 1 "[子任务名]" completed --detail "产出概要：\n- 要点1\n- 要点2\n验证结果：通过"
+# 上报子任务产出详情
+python3 scripts/kanban_update.py todo JJC-xxx 1 "[子任务名]" completed --detail "产出概要：\n- 数据源：xxx\n- 统计结果：xxx\n- 关键指标：xxx"
+
+# 写入最终产出（必做！done 的第一个参数是完整产出，第二个是摘要）
+python3 scripts/kanban_update.py done JJC-xxx "完整产出内容：\n1. xxx\n2. xxx\n交付物：xxx" "户部完成：[一句话摘要]"
 ```
 
 ## 语气

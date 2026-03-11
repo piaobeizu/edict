@@ -1,0 +1,73 @@
+# ══════════════════════════════════════════════════════
+# 三省六部 · 统一镜像部署 (v1)
+# ══════════════════════════════════════════════════════
+#
+# 使用前先构建镜像：
+#   ./edict/build-unified.sh
+#
+# 然后启动：
+#   docker compose -f edict/docker-compose.unified.yml up -d
+#
+# 访问：
+#   - 看板: http://localhost:7891
+#   - OpenClaw Gateway: 容器内部 127.0.0.1:18789（如需外部访问可取消下方 18789 端口注释）
+#
+# ══════════════════════════════════════════════════════
+
+services:
+  edict:
+    container_name: edict-unified
+    image: ${IMAGE_NAME:-edict-unified}:${IMAGE_TAG:-latest}
+    ports:
+      - "8891:7891"
+      # - "18789:18789"    # 取消注释可外部访问 Gateway（需配置 auth）
+    environment:
+      NODE_ENV: production
+
+      # ── LLM 配置（OpenAI 兼容格式）──
+      # 首次启动时写入 openclaw.json，后续修改请直接编辑宿主机目录下的配置文件
+      # 重新初始化: rm -rf data/openclaw data/edict && docker compose ... up -d
+      #
+      # 环境变量说明：
+      #   LLM_PROVIDER_ID    — 自定义 provider 名称，不能含斜杠（如 gmi、my-proxy）
+      #   LLM_BASE_URL       — API 地址
+      #   LLM_API_KEY        — API Key
+      #   LLM_MODEL_ID       — 发给 API 的模型名，可含斜杠（如 openai/gpt-5.4）
+      #   LLM_DEFAULT_MODEL  — OpenClaw 内部模型标识，格式 {provider_id}/{model_id}
+      #                        如 gmi/openai/gpt-5.4（第一段必须匹配 LLM_PROVIDER_ID）
+      #   LLM_CONTEXT_WINDOW — 上下文窗口（默认 128000）
+      #   LLM_MAX_TOKENS     — 最大输出 tokens（默认 32768）
+      #
+      # 示例 1: GMI Cloud
+      #   LLM_PROVIDER_ID: gmi
+      #   LLM_BASE_URL: https://api.gmi-serving.com/v1
+      #   LLM_API_KEY: your-api-key
+      #   LLM_MODEL_ID: openai/gpt-5.4
+      #   LLM_DEFAULT_MODEL: gmi/openai/gpt-5.4
+      #   LLM_CONTEXT_WINDOW: 409600
+      #
+      # 示例 2: 第三方代理 (api2d / openrouter / one-api)
+      #   LLM_PROVIDER_ID: my-proxy
+      #   LLM_BASE_URL: https://your-proxy.com/v1
+      #   LLM_API_KEY: sk-xxxx
+      #   LLM_MODEL_ID: gpt-4o
+      #   LLM_DEFAULT_MODEL: my-proxy/gpt-4o
+      #
+      # 示例 3: 本地 Ollama
+      #   LLM_PROVIDER_ID: local-ollama
+      #   LLM_BASE_URL: http://host.docker.internal:11434/v1
+      #   LLM_API_KEY: ollama
+      #   LLM_MODEL_ID: qwen2.5:32b
+      #   LLM_DEFAULT_MODEL: local-ollama/qwen2.5:32b
+      #
+      LLM_PROVIDER_ID: gmi
+      LLM_BASE_URL: https://api.gmi-serving.com/v1
+      LLM_API_KEY: ${LLM_API_KEY}
+      LLM_MODEL_ID: openai/gpt-5.4
+      LLM_DEFAULT_MODEL: gmi/openai/gpt-5.4
+      LLM_CONTEXT_WINDOW: "409600"
+      LLM_MAX_TOKENS: "32768"
+    volumes:
+      - /root/code/python/edict/data/openclaw:/root/.openclaw
+      - /root/code/python/edict/data/edict:/app/data
+    restart: unless-stopped

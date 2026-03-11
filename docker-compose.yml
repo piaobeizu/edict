@@ -5,7 +5,7 @@ services:
     image: cft0808/sansheng-demo:latest
     platform: linux/amd64
     ports:
-      - "7891:7891"
+      - "8891:7891"
     environment:
       - DEMO_MODE=true
     restart: unless-stopped

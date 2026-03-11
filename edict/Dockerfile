@@ -2,10 +2,25 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-# 安装系统依赖
+# 安装系统依赖 + Node.js 22（openclaw CLI 运行时需要）
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
+    curl \
+    ca-certificates \
+    gnupg \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+       | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
+    && echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+       > /etc/apt/sources.list.d/nodesource.list \
+    && apt-get update \
+    && apt-get install -y --no-install-recommends nodejs \
     && rm -rf /var/lib/apt/lists/*
+
+# 安装 OpenClaw CLI（dispatcher 调用 `openclaw agent` 需要）
+ARG OPENCLAW_VERSION=latest
+RUN npm install -g "openclaw@${OPENCLAW_VERSION}" \
+    && openclaw --version
 
 # 安装 Python 依赖
 COPY edict/backend/requirements.txt /tmp/requirements.txt

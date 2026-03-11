@@ -3,8 +3,8 @@ import { api, type Task } from '../api';
 
 // 排序权重
 const STATE_ORDER: Record<string, number> = {
-  Doing: 0, Review: 1, Assigned: 2, Menxia: 3, Zhongshu: 4,
-  Taizi: 5, Inbox: 6, Blocked: 7, Next: 8, Done: 9, Cancelled: 10,
+  YuLan: 0, Doing: 1, Review: 2, Assigned: 3, Menxia: 4, Zhongshu: 5,
+  Taizi: 6, Inbox: 7, Blocked: 8, Next: 9, Done: 10, Cancelled: 11,
 };
 
 function MiniPipe({ task }: { task: Task }) {
@@ -122,6 +122,11 @@ function EdictCard({ task }: { task: Task }) {
       )}
       <div className="ec-footer">
         <span className={`hb ${hb.status}`}>{hb.label}</span>
+        {task.state === 'YuLan' && (
+          <span className="tag" style={{ borderColor: '#ffd70044', color: '#ffd700', background: '#ffd70015', fontWeight: 700 }}>
+            👑 待御批
+          </span>
+        )}
         {isBlocked && (
           <span className="tag" style={{ borderColor: '#ff527044', color: 'var(--danger)', background: '#200a10' }}>
             🚫 {task.block}

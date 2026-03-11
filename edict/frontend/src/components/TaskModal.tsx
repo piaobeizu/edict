@@ -27,7 +27,8 @@ const AGENT_LABELS: Record<string, string> = {
 const NEXT_LABELS: Record<string, string> = {
   Taizi: '中书省起草',
   Zhongshu: '门下省审议',
-  Menxia: '尚书省派发',
+  Menxia: '皇上御览',
+  YuLan: '尚书省派发',
   Assigned: '开始执行',
   Doing: '进入审查',
   Review: '完成',
@@ -275,13 +276,23 @@ export default function TaskModal() {
             {canResume && (
               <button className="btn-action btn-resume" onClick={() => doTaskAction('resume', '恢复执行')}>▶️ 恢复执行</button>
             )}
+            {task.state === 'YuLan' && (
+              <div style={{ width: '100%', padding: '12px', background: '#ffd70015', border: '1px solid #ffd70044', borderRadius: 8, marginBottom: 8 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#ffd700', marginBottom: 8 }}>👑 御览 — 等待皇上御批</div>
+                <div style={{ fontSize: 12, color: 'var(--muted)', marginBottom: 10 }}>门下省已审议通过，请审阅方案后御批。</div>
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button className="btn-action" style={{ background: '#2ecc8a22', color: '#2ecc8a', border: '1px solid #2ecc8a44', flex: 1, fontWeight: 700, fontSize: 14, padding: '8px 0' }} onClick={() => doReview('approve')}>👑 准奏 — 交付执行</button>
+                  <button className="btn-action" style={{ background: '#ff527022', color: '#ff5270', border: '1px solid #ff527044', flex: 1, fontWeight: 700, fontSize: 14, padding: '8px 0' }} onClick={() => doReview('reject')}>🚫 封驳 — 退回修改</button>
+                </div>
+              </div>
+            )}
             {['Review', 'Menxia'].includes(task.state) && (
               <>
                 <button className="btn-action" style={{ background: '#2ecc8a22', color: '#2ecc8a', border: '1px solid #2ecc8a44' }} onClick={() => doReview('approve')}>✅ 准奏</button>
                 <button className="btn-action" style={{ background: '#ff527022', color: '#ff5270', border: '1px solid #ff527044' }} onClick={() => doReview('reject')}>🚫 封驳</button>
               </>
             )}
-            {['Pending', 'Taizi', 'Zhongshu', 'Menxia', 'Assigned', 'Doing', 'Review', 'Next'].includes(task.state) && (
+            {['Pending', 'Taizi', 'Zhongshu', 'Menxia', 'YuLan', 'Assigned', 'Doing', 'Review', 'Next'].includes(task.state) && (
               <button className="btn-action" style={{ background: '#7c5cfc18', color: '#7c5cfc', border: '1px solid #7c5cfc44' }} onClick={doAdvance}>⏩ 推进到下一步</button>
             )}
           </div>

@@ -91,6 +91,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://edict:edict_dev_2024@postgres:5432/edict
       REDIS_URL: redis://redis:6379/0
       OPENCLAW_PROJECT_DIR: /app
+      # OpenClaw CLI 配置（dispatcher 通过 subprocess 调用 openclaw agent）
+      # 设置你的 LLM API key，例如：
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -100,6 +104,7 @@ services:
       - ./agents:/app/agents:ro
       - ./scripts:/app/scripts
       - ./data:/app/data
+      - openclaw_data:/root/.openclaw
     command: python -m app.workers.dispatch_worker
     restart: unless-stopped
 
@@ -121,3 +126,4 @@ services:
 volumes:
   pg_data:
   redis_data:
+  openclaw_data:

@@ -27,6 +27,19 @@
 python3 scripts/kanban_update.py state <id> <state> "<说明>"
 python3 scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
 python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
+python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
+```
+
+### 📝 审议产出上报（必做！）
+
+> 🚨 **审议完成后必须用 `todo --detail` 上报审议结论，否则皇上在看板上看不到审议结果！**
+
+```bash
+# 准奏
+python3 scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "审议结论：准奏\n- 可行性：通过\n- 完整性：子任务覆盖完整\n- 风险：可控\n- 资源：合理"
+
+# 封驳
+python3 scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "审议结论：封驳\n问题：\n1. xxx\n2. xxx\n修改建议：xxx"
 ```
 
 ---
@@ -74,15 +87,15 @@ python3 scripts/kanban_update.py flow JJC-xxx "门下省" "中书省" "❌ 封�
 ### 准奏（通过）
 
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx Assigned "门下省准奏"
-python3 scripts/kanban_update.py flow JJC-xxx "门下省" "中书省" "✅ 准奏"
+python3 scripts/kanban_update.py state JJC-xxx YuLan "门下省准奏，呈送皇上御览"
+python3 scripts/kanban_update.py flow JJC-xxx "门下省" "皇上" "✅ 准奏，呈送御览"
 ```
 
 返回格式：
 ```
 🔍 门下省·审议意见
 任务ID: JJC-xxx
-结论: ✅ 准奏
+结论: ✅ 准奏（呈送皇上御览）
 ```
 
 ---

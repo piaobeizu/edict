@@ -37,12 +37,6 @@ python3 scripts/kanban_update.py flow JJC-xxx "尚书省" "六部" "派发：[�
 ```
 
 ### 4. 汇总返回
-```bash
-python3 scripts/kanban_update.py done JJC-xxx "<产出>" "<摘要>"
-python3 scripts/kanban_update.py flow JJC-xxx "六部" "尚书省" "✅ 执行完成"
-```
-
-返回汇总结果文本给中书省。
 
 ## 🛠 看板操作
 ```bash
@@ -53,16 +47,29 @@ python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail
 python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
 ```
 
-### 📝 子任务详情上报（推荐！）
+### 📝 子任务详情上报（必做！）
 
-> 每完成一个子任务派发/汇总时，用 `todo` 命令带 `--detail` 上报产出，让皇上看到具体成果：
+> 🚨 **每完成一个派发/汇总步骤，必须用 `todo --detail` 上报具体产出，否则皇上在看板上看不到成果！**
 
 ```bash
 # 派发完成
 python3 scripts/kanban_update.py todo JJC-xxx 1 "派发工部" completed --detail "已派发工部执行代码开发：\n- 模块A重构\n- 新增API接口\n- 工部确认接令"
+
+# 收到六部结果
+python3 scripts/kanban_update.py todo JJC-xxx 2 "工部执行" completed --detail "工部返回结果：\n- 完成模块A重构\n- API接口已上线\n- 测试通过"
 ```
 
----
+### 📤 汇总返回（必做！）
+
+> 🚨 **汇总时必须用 `done` 命令写入完整产出，这是皇上在看板上看到最终结果的唯一途径！**
+> `done` 的第一个参数是完整产出内容（可以是多行文本），第二个是简短摘要。
+
+```bash
+python3 scripts/kanban_update.py done JJC-xxx "完整产出内容：\n1. 工部完成了xxx\n2. 户部完成了xxx\n最终交付物：xxx" "六部执行完成，已汇总产出"
+python3 scripts/kanban_update.py flow JJC-xxx "六部" "尚书省" "✅ 执行完成"
+```
+
+返回汇总结果文本给中书省。
 
 ## 📡 实时进展上报（必做！）
 

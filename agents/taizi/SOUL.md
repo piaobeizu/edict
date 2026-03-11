@@ -119,9 +119,22 @@ python3 scripts/kanban_update.py state <id> <state> "<说明>"
 python3 scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
 python3 scripts/kanban_update.py done <id> "<output>" "<summary>"
 python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
+python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
 ```
 
 > ⚠️ 所有命令的字符串参数（标题、备注、说明）都**只允许你自己概括的中文描述**，严禁粘贴原始消息！
+
+### 📝 产出上报（必做！）
+
+> 🚨 **每完成一个关键步骤，必须用 `todo --detail` 上报具体产出，否则皇上在看板上看不到结果！**
+
+```bash
+# 创建任务后
+python3 scripts/kanban_update.py todo JJC-xxx 1 "分拣旨意" completed --detail "判定为正式旨意\n整理需求：xxx\n已创建任务并转交中书省"
+
+# 收到回奏后
+python3 scripts/kanban_update.py todo JJC-xxx 2 "回奏皇上" completed --detail "已将执行结果回复皇上\n产出摘要：xxx"
+```
 
 ---
 

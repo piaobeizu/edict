@@ -1,0 +1,135 @@
+# ══════════════════════════════════════════════════════
+# 三省六部 · 统一镜像 (OpenClaw + Edict v1 All-in-One)
+# ══════════════════════════════════════════════════════
+#
+# 多阶段构建：
+#   Stage 1a: OpenClaw 扩展依赖提取
+#   Stage 1b: OpenClaw 从源码构建 (CLI + Gateway)
+#   Stage 2:  Edict React 前端构建
+#   Stage 3:  统一运行时
+#
+# 包含服务（由 Supervisor 管理）：
+#   - OpenClaw Gateway      (port 18789)
+#   - Dashboard Server      (port 7891)
+#   - 数据刷新循环            (run_loop.sh)
+#
+# 构建上下文结构（由 build-unified.sh 的 tar 打包提供）：
+#   context/
+#   ├── openclaw/   (openclaw 源码，排除 .git/node_modules)
+#   └── edict/      (edict 项目，排除 .git/node_modules)
+#
+# ══════════════════════════════════════════════════════
+
+# ── Stage 1a: OpenClaw 扩展依赖提取 ──
+ARG OPENCLAW_EXTENSIONS=""
+FROM node:22-bookworm@sha256:cd7bcd2e7a1e6f72052feb023c7f6b722205d3fcab7bbcbd2d1bfdab10b1e935 AS openclaw-ext-deps
+ARG OPENCLAW_EXTENSIONS
+COPY openclaw/extensions /tmp/extensions
+RUN mkdir -p /out && \
+    for ext in $OPENCLAW_EXTENSIONS; do \
+      if [ -f "/tmp/extensions/$ext/package.json" ]; then \
+        mkdir -p "/out/$ext" && \
+        cp "/tmp/extensions/$ext/package.json" "/out/$ext/package.json"; \
+      fi; \
+    done
+
+# ── Stage 1b: OpenClaw 从源码构建 ──
+FROM node:22-bookworm@sha256:cd7bcd2e7a1e6f72052feb023c7f6b722205d3fcab7bbcbd2d1bfdab10b1e935 AS openclaw-build
+
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
+RUN corepack enable
+
+WORKDIR /openclaw
+
+# 先复制依赖清单，利用 Docker 缓存
+COPY openclaw/package.json openclaw/pnpm-lock.yaml openclaw/pnpm-workspace.yaml openclaw/.npmrc ./
+COPY openclaw/ui/package.json ./ui/package.json
+COPY openclaw/patches ./patches
+COPY openclaw/scripts ./scripts
+COPY --from=openclaw-ext-deps /out/ ./extensions/
+
+RUN NODE_OPTIONS=--max-old-space-size=2048 pnpm install --frozen-lockfile
+
+# 复制全部源码并构建
+COPY openclaw/ .
+RUN for dir in /openclaw/extensions /openclaw/.agent /openclaw/.agents; do \
+      if [ -d "$dir" ]; then \
+        find "$dir" -type d -exec chmod 755 {} +; \
+        find "$dir" -type f -exec chmod 644 {} +; \
+      fi; \
+    done
+RUN pnpm build
+ENV OPENCLAW_PREFER_PNPM=1
+RUN pnpm ui:build
+
+# ── Stage 2: Edict React 前端构建 ──
+FROM node:20-alpine AS edict-frontend-build
+WORKDIR /build
+COPY edict/edict/frontend/ ./
+RUN rm -rf node_modules && npm ci --silent
+RUN npx vite build --outDir /build/dist
+
+# ── Stage 3: 统一运行时 ──
+FROM node:22-bookworm@sha256:cd7bcd2e7a1e6f72052feb023c7f6b722205d3fcab7bbcbd2d1bfdab10b1e935
+
+LABEL org.opencontainers.image.title="Edict Unified" \
+      org.opencontainers.image.description="三省六部 + OpenClaw Gateway 统一运行时"
+
+# ── 安装系统依赖：Python 3 + Supervisor + procps ──
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    python3 \
+    supervisor \
+    procps \
+    curl \
+    ca-certificates \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/* /var/cache/apt/archives/*
+
+# Bun (OpenClaw 构建脚本需要)
+RUN curl -fsSL https://bun.sh/install | bash
+ENV PATH="/root/.bun/bin:${PATH}"
+RUN corepack enable
+
+# ── 复制 OpenClaw 构建产物 ──
+WORKDIR /openclaw
+COPY --from=openclaw-build /openclaw/ /openclaw/
+
+# 创建 openclaw CLI 软链接
+RUN ln -sf /openclaw/openclaw.mjs /usr/local/bin/openclaw \
+    && chmod 755 /openclaw/openclaw.mjs
+# 验证 CLI 可用
+RUN openclaw --version
+
+# ── 复制 Edict v1 文件 ──
+WORKDIR /app
+
+# Dashboard 服务端 + 脚本
+COPY edict/dashboard/ ./dashboard/
+COPY edict/scripts/ ./scripts/
+COPY edict/agents/ ./agents/
+COPY edict/install.sh ./install.sh
+
+# React 前端构建产物 → dashboard/dist/
+COPY --from=edict-frontend-build /build/dist ./dashboard/dist/
+
+# 运行时数据目录（可挂载 volume）
+RUN mkdir -p ./data /root/.openclaw /var/log/supervisor
+
+# ── Supervisor 配置 ──
+COPY edict/edict/supervisord.conf /etc/supervisor/conf.d/edict.conf
+
+# ── 启动脚本 ──
+COPY edict/edict/entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+
+ENV NODE_ENV=production
+
+EXPOSE 7891 18789
+
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+    CMD python3 -c "import urllib.request; urllib.request.urlopen('http://127.0.0.1:7891/healthz')" \
+    && node -e "fetch('http://127.0.0.1:18789/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
+CMD ["supervisord", "-n", "-c", "/etc/supervisor/conf.d/edict.conf"]

@@ -23,6 +23,7 @@ export const PIPE = [
   { key: 'Taizi',    dept: '太子',   icon: '🤴', action: '分拣' },
   { key: 'Zhongshu', dept: '中书省', icon: '📜', action: '起草' },
   { key: 'Menxia',   dept: '门下省', icon: '🔍', action: '审议' },
+  { key: 'YuLan',    dept: '皇上',   icon: '👑', action: '御览' },
   { key: 'Assigned', dept: '尚书省', icon: '📮', action: '派发' },
   { key: 'Doing',    dept: '六部',   icon: '⚙️', action: '执行' },
   { key: 'Review',   dept: '尚书省', icon: '🔎', action: '汇总' },
@@ -31,7 +32,7 @@ export const PIPE = [
 
 export const PIPE_STATE_IDX: Record<string, number> = {
   Inbox: 0, Pending: 0, Taizi: 1, Zhongshu: 2, Menxia: 3,
-  Assigned: 4, Doing: 5, Review: 6, Done: 7, Blocked: 5, Cancelled: 5, Next: 4,
+  YuLan: 4, Assigned: 5, Doing: 6, Review: 7, Done: 8, Blocked: 6, Cancelled: 6, Next: 5,
 };
 
 export const DEPT_COLOR: Record<string, string> = {
@@ -42,7 +43,7 @@ export const DEPT_COLOR: Record<string, string> = {
 
 export const STATE_LABEL: Record<string, string> = {
   Inbox: '收件', Pending: '待处理', Taizi: '太子分拣', Zhongshu: '中书起草',
-  Menxia: '门下审议', Assigned: '已派发', Doing: '执行中', Review: '待审查',
+  Menxia: '门下审议', YuLan: '御览', Assigned: '已派发', Doing: '执行中', Review: '待审查',
   Done: '已完成', Blocked: '阻塞', Cancelled: '已取消', Next: '待执行',
 };
 
@@ -54,6 +55,7 @@ export function stateLabel(t: Task): string {
   const r = t.review_round || 0;
   if (t.state === 'Menxia' && r > 1) return `门下审议（第${r}轮）`;
   if (t.state === 'Zhongshu' && r > 0) return `中书修订（第${r}轮）`;
+  if (t.state === 'YuLan') return '👑 待御批';
   return STATE_LABEL[t.state] || t.state;
 }
 
