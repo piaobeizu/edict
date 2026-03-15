@@ -1,6 +1,6 @@
 /**
- * API 层 — 对接 dashboard/server.py
- * 生产环境从同源 (port 7891) 请求，开发环境可通过 VITE_API_URL 指定
+ * API 层
+ * 默认同源请求（由前端 Nginx 反代到 backend），开发环境可通过 VITE_API_URL 指定
  */
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
@@ -22,11 +22,16 @@ async function postJ<T>(url: string, data: unknown): Promise<T> {
   return res.json();
 }
 
+async function postEmptyJ<T>(url: string): Promise<T> {
+  const res = await fetch(url, { method: 'POST' });
+  return res.json();
+}
+
 // ── API 接口 ──
 
 export const api = {
   // 核心数据
-  liveStatus: () => fetchJ<LiveStatus>(`${API_BASE}/api/live-status`),
+  liveStatus: () => fetchJ<LiveStatus>(`${API_BASE}/api/tasks/live-status`),
   agentConfig: () => fetchJ<AgentConfig>(`${API_BASE}/api/agent-config`),
   modelChangeLog: () => fetchJ<ChangeLogEntry[]>(`${API_BASE}/api/model-change-log`).catch(() => []),
   officialsStats: () => fetchJ<OfficialsData>(`${API_BASE}/api/officials-stats`),
@@ -72,6 +77,16 @@ export const api = {
     postJ<ActionResult>(`${API_BASE}/api/scheduler-escalate`, { taskId, reason }),
   schedulerRollback: (taskId: string, reason: string) =>
     postJ<ActionResult>(`${API_BASE}/api/scheduler-rollback`, { taskId, reason }),
+  dispatchTask: (taskId: string, agent: string, message: string) => {
+    const q = new URLSearchParams({ agent, message });
+    return postEmptyJ<ActionResult & { agent?: string; message?: string }>(`${API_BASE}/api/tasks/${encodeURIComponent(taskId)}/dispatch?${q.toString()}`)
+      .then((r) => {
+        // tasks.dispatch 接口历史返回为 {message, agent}，无 ok 字段
+        if (typeof r?.ok === 'boolean') return r;
+        const { ok: _ignored, ...rest } = (r || {}) as ActionResult & { agent?: string; message?: string };
+        return { ok: true, ...rest };
+      });
+  },
   refreshMorning: () =>
     postJ<ActionResult>(`${API_BASE}/api/morning-brief/refresh`, {}),
   saveMorningConfig: (config: SubConfig) =>
@@ -93,6 +108,17 @@ export const api = {
 
   createTask: (data: CreateTaskPayload) =>
     postJ<ActionResult & { taskId?: string }>(`${API_BASE}/api/create-task`, data),
+
+  artifactDownloadUrl: (path: string) =>
+    `${API_BASE}/api/files/download?path=${encodeURIComponent(path)}`,
+
+  // 推送渠道
+  notifyChannels: () =>
+    fetchJ<NotifyChannelsResult>(`${API_BASE}/api/notify-channels`),
+  saveNotifyConfig: (config: { channels: Record<string, Record<string, unknown>> }) =>
+    postJ<ActionResult>(`${API_BASE}/api/notify-config`, config),
+  testNotifyChannel: (channelId: string, params: Record<string, string>) =>
+    postJ<ActionResult & { msg?: string }>(`${API_BASE}/api/notify-test`, { channel_id: channelId, params }),
 };
 
 // ── Types ──
@@ -104,10 +130,12 @@ export interface ActionResult {
 }
 
 export interface FlowEntry {
-  at: string;
+  at?: string;
+  ts?: string;
   from: string;
   to: string;
-  remark: string;
+  remark?: string;
+  reason?: string;
 }
 
 export interface TodoItem {
@@ -331,6 +359,17 @@ export interface TaskActivityData {
   totalDuration?: string;
   todosSummary?: TodosSummary;
   resourceSummary?: ResourceSummary;
+  artifacts?: { path: string; kind?: string; exists?: boolean; downloadable?: boolean }[];
+  retrySummary?: {
+    count: number;
+    records: {
+      at?: string;
+      agent?: string;
+      attempts?: number;
+      errorType?: string;
+      exhausted?: boolean;
+    }[];
+  };
 }
 
 export interface SchedulerInfo {
@@ -394,5 +433,33 @@ export interface RemoteSkillsListResult {
   remoteSkills?: RemoteSkillItem[];
   count?: number;
   listedAt?: string;
+  error?: string;
+}
+
+// ── 推送渠道 ──
+
+export interface ChannelSchemaField {
+  key: string;
+  label: string;
+  type: 'text' | 'password' | 'select' | 'number';
+  placeholder?: string;
+  required?: boolean;
+  default?: string;
+  options?: string[];
+}
+
+export interface ChannelMeta {
+  channel_id: string;
+  display_name: string;
+  icon: string;
+  config_schema: ChannelSchemaField[];
+  enabled: boolean;
+  params: Record<string, string>;
+  secret_state?: Record<string, { has_value: boolean; masked: string }>;
+}
+
+export interface NotifyChannelsResult {
+  ok: boolean;
+  channels?: ChannelMeta[];
   error?: string;
 }

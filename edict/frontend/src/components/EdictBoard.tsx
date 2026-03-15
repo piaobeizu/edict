@@ -174,7 +174,18 @@ export default function EdictBoard() {
   else if (edictFilter === 'archived') edicts = archivedEdicts;
   else edicts = allEdicts;
 
-  edicts.sort((a, b) => (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9));
+  const ts = (v?: string) => {
+    if (!v) return 0;
+    const t = Date.parse(v);
+    return Number.isNaN(t) ? 0 : t;
+  };
+
+  // 先按状态分组，再组内按时间倒序（最近更新在前）
+  edicts.sort((a, b) => {
+    const sg = (STATE_ORDER[a.state] ?? 9) - (STATE_ORDER[b.state] ?? 9);
+    if (sg !== 0) return sg;
+    return ts(b.updatedAt) - ts(a.updatedAt);
+  });
 
   const unArchivedDone = allEdicts.filter((t) => !t.archived && ['Done', 'Cancelled'].includes(t.state));
 

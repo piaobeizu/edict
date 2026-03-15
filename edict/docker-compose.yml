@@ -27,7 +27,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "6380:6379"
     volumes:
       - redis_data:/data
     command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
@@ -45,11 +45,15 @@ services:
       context: .
       dockerfile: edict/Dockerfile
     ports:
-      - "8000:8000"
+      - "8001:8001"
     environment:
-      DATABASE_URL: postgresql+asyncpg://edict:edict_dev_2024@postgres:5432/edict
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: edict
+      POSTGRES_USER: edict
+      POSTGRES_PASSWORD: edict_dev_2024
       REDIS_URL: redis://redis:6379/0
-      PORT: 8000
+      PORT: 8001
       DEBUG: "true"
     depends_on:
       postgres:
@@ -59,10 +63,11 @@ services:
     volumes:
       - ./agents:/app/agents:ro
       - ./data:/app/data
+      - openclaw_data:/root/.openclaw:ro
     command: >
       sh -c "
         python -m alembic upgrade head &&
-        uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+        uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
       "
     restart: unless-stopped
 
@@ -73,7 +78,11 @@ services:
       context: .
       dockerfile: edict/Dockerfile
     environment:
-      DATABASE_URL: postgresql+asyncpg://edict:edict_dev_2024@postgres:5432/edict
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: edict
+      POSTGRES_USER: edict
+      POSTGRES_PASSWORD: edict_dev_2024
       REDIS_URL: redis://redis:6379/0
     depends_on:
       postgres:
@@ -88,9 +97,20 @@ services:
       context: .
       dockerfile: edict/Dockerfile
     environment:
-      DATABASE_URL: postgresql+asyncpg://edict:edict_dev_2024@postgres:5432/edict
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: edict
+      POSTGRES_USER: edict
+      POSTGRES_PASSWORD: edict_dev_2024
       REDIS_URL: redis://redis:6379/0
       OPENCLAW_PROJECT_DIR: /app
+      # LLM credentials（从项目根 .env 注入；至少配置一个）
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_PROVIDER_ID: ${OPENAI_PROVIDER_ID:-}
       # OpenClaw CLI 配置（dispatcher 通过 subprocess 调用 openclaw agent）
       # 设置你的 LLM API key，例如：
       # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
@@ -115,10 +135,10 @@ services:
       context: ./edict/frontend
       dockerfile: Dockerfile
     ports:
-      - "3000:3000"
+      - "8002:3000"
     environment:
-      VITE_API_URL: http://localhost:8000
-      VITE_WS_URL: ws://localhost:8000/ws
+      VITE_API_URL: http://localhost:8001
+      VITE_WS_URL: ws://localhost:8001/ws
     depends_on:
       - backend
     restart: unless-stopped

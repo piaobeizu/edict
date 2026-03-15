@@ -339,7 +339,29 @@ export const useStore = create<AppStore>((set, get) => ({
   loadLive: async () => {
     try {
       const data = await api.liveStatus();
-      set({ liveStatus: data });
+      const raw: any = data as any;
+
+      // 兼容两种后端结构：
+      // 1) { tasks: Task[] }
+      // 2) { tasks: {id: Task}, completed_tasks: {id: Task} }
+      let tasks: Task[] = [];
+      if (Array.isArray(raw?.tasks)) {
+        tasks = raw.tasks;
+      } else {
+        const active = raw?.tasks && typeof raw.tasks === 'object' ? Object.values(raw.tasks) : [];
+        const completed = raw?.completed_tasks && typeof raw.completed_tasks === 'object'
+          ? Object.values(raw.completed_tasks)
+          : [];
+        tasks = [...active, ...completed] as Task[];
+      }
+
+      set({
+        liveStatus: {
+          ...(raw || {}),
+          tasks,
+          syncStatus: raw?.syncStatus || { ok: true },
+        } as LiveStatus,
+      });
       // Also preload officials for monitor tab
       const s = get();
       if (!s.officialsData) {

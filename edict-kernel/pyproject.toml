@@ -1,0 +1,27 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "edict-kernel"
+version = "0.1.0"
+description = "Framework-agnostic workflow engine kernel — state machine, task lifecycle, event-driven dispatch."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+# 核心零依赖（纯 stdlib）
+dependencies = []
+
+[project.optional-dependencies]
+# Adapters 的可选依赖
+postgres = ["sqlalchemy[asyncio]>=2.0", "asyncpg"]
+redis = ["redis[hiredis]>=5.0"]
+all = ["edict-kernel[postgres,redis]"]
+dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/edict_kernel"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

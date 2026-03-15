@@ -1,6 +1,4 @@
 """Tasks API — 任务的 CRUD 和状态流转。"""
-
-import uuid
 import logging
 from datetime import datetime
 
@@ -15,6 +13,10 @@ from ..services.task_service import TaskService
 
 log = logging.getLogger("edict.api.tasks")
 router = APIRouter()
+
+
+def _state_str(v) -> str:
+    return v.value if isinstance(v, TaskState) else str(v)
 
 
 # ── Schemas ──
@@ -49,21 +51,18 @@ class TaskSchedulerUpdate(BaseModel):
 
 
 class TaskOut(BaseModel):
-    task_id: str
-    trace_id: str
+    id: str
     title: str
-    description: str
     priority: str
     state: str
-    assignee_org: str | None
-    creator: str
-    tags: list[str]
+    org: str
+    official: str
     flow_log: list
     progress_log: list
     todos: list
-    scheduler: dict | None
-    created_at: str
-    updated_at: str
+    scheduler: dict
+    createdAt: str
+    updatedAt: str
 
     class Config:
         from_attributes = True
@@ -132,12 +131,12 @@ async def create_task(
         tags=body.tags,
         meta=body.meta,
     )
-    return {"task_id": str(task.task_id), "trace_id": str(task.trace_id), "state": task.state.value}
+    return {"task_id": str(task.id), "trace_id": str(task.id), "state": _state_str(task.state)}
 
 
 @router.get("/{task_id}")
 async def get_task(
-    task_id: uuid.UUID,
+    task_id: str,
     svc: TaskService = Depends(get_task_service),
 ):
     """获取任务详情。"""
@@ -150,7 +149,7 @@ async def get_task(
 
 @router.post("/{task_id}/transition")
 async def transition_task(
-    task_id: uuid.UUID,
+    task_id: str,
     body: TaskTransition,
     svc: TaskService = Depends(get_task_service),
 ):
@@ -167,14 +166,14 @@ async def transition_task(
             agent=body.agent,
             reason=body.reason,
         )
-        return {"task_id": str(task.task_id), "state": task.state.value, "message": "ok"}
+        return {"task_id": str(task.id), "state": _state_str(task.state), "message": "ok"}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/{task_id}/dispatch")
 async def dispatch_task(
-    task_id: uuid.UUID,
+    task_id: str,
     agent: str = Query(description="目标 agent"),
     message: str = Query(default="", description="派发消息"),
     svc: TaskService = Depends(get_task_service),
@@ -189,7 +188,7 @@ async def dispatch_task(
 
 @router.post("/{task_id}/progress")
 async def add_progress(
-    task_id: uuid.UUID,
+    task_id: str,
     body: TaskProgress,
     svc: TaskService = Depends(get_task_service),
 ):
@@ -203,7 +202,7 @@ async def add_progress(
 
 @router.put("/{task_id}/todos")
 async def update_todos(
-    task_id: uuid.UUID,
+    task_id: str,
     body: TaskTodoUpdate,
     svc: TaskService = Depends(get_task_service),
 ):
@@ -217,7 +216,7 @@ async def update_todos(
 
 @router.put("/{task_id}/scheduler")
 async def update_scheduler(
-    task_id: uuid.UUID,
+    task_id: str,
     body: TaskSchedulerUpdate,
     svc: TaskService = Depends(get_task_service),
 ):

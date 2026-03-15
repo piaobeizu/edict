@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     ca-certificates \
     gnupg \
+    git \
     && mkdir -p /etc/apt/keyrings \
     && curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
        | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg \
@@ -28,6 +29,9 @@ RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
 # 复制后端代码
 COPY edict/backend/ /app/
+
+# 复制推送渠道模块（供 notify API 使用）
+COPY dashboard/notify/ /app/notify/
 
 # 复制 Alembic 配置
 COPY edict/alembic.ini /app/alembic.ini

@@ -7,7 +7,6 @@
 """
 
 import logging
-import uuid
 from datetime import datetime, timezone
 from typing import Any
 
@@ -41,22 +40,22 @@ class TaskService:
         assignee_org: str | None = None,
         creator: str = "emperor",
         tags: list[str] | None = None,
-        initial_state: TaskState = TaskState.TAIZI,
+        initial_state: TaskState = TaskState.Taizi,
         meta: dict | None = None,
     ) -> Task:
         """创建任务并发布 task.created 事件。"""
         now = datetime.now(timezone.utc)
-        trace_id = str(uuid.uuid4())
+        task_id = now.strftime("JJC-%Y%m%d-%H%M%S")
 
         task = Task(
-            trace_id=trace_id,
+            id=task_id,
             title=title,
-            description=description,
             priority=priority,
-            state=initial_state,
-            assignee_org=assignee_org,
-            creator=creator,
-            tags=tags or [],
+            state=initial_state.value,
+            org=assignee_org or "太子",
+            official=creator,
+            now=description or "",
+            block="无",
             flow_log=[
                 {
                     "from": None,
@@ -68,8 +67,7 @@ class TaskService:
             ],
             progress_log=[],
             todos=[],
-            scheduler=None,
-            meta=meta or {},
+            scheduler=meta or {},
         )
         self.db.add(task)
         await self.db.flush()
@@ -77,34 +75,35 @@ class TaskService:
         # 发布事件
         await self.bus.publish(
             topic=TOPIC_TASK_CREATED,
-            trace_id=trace_id,
+            trace_id=task_id,
             event_type="task.created",
             producer="task_service",
             payload={
-                "task_id": str(task.task_id),
+                "task_id": str(task.id),
                 "title": title,
                 "state": initial_state.value,
                 "priority": priority,
-                "assignee_org": assignee_org,
+                "assignee_org": assignee_org or "太子",
+                "tags": tags or [],
             },
         )
 
         await self.db.commit()
-        log.info(f"Created task {task.task_id}: {title} [{initial_state.value}]")
+        log.info(f"Created task {task.id}: {title} [{initial_state.value}]")
         return task
 
     # ── 状态流转 ──
 
     async def transition_state(
         self,
-        task_id: uuid.UUID,
+        task_id: str,
         new_state: TaskState,
         agent: str = "system",
         reason: str = "",
     ) -> Task:
         """执行状态流转，校验合法性。"""
         task = await self._get_task(task_id)
-        old_state = task.state
+        old_state = task.state if isinstance(task.state, TaskState) else TaskState(task.state)
 
         # 校验合法流转
         allowed = STATE_TRANSITIONS.get(old_state, set())
@@ -114,7 +113,7 @@ class TaskService:
                 f"Allowed: {[s.value for s in allowed]}"
             )
 
-        task.state = new_state
+        task.state = new_state.value
         task.updated_at = datetime.now(timezone.utc)
 
         # 记入 flow_log
@@ -133,7 +132,7 @@ class TaskService:
         topic = TOPIC_TASK_COMPLETED if new_state in TERMINAL_STATES else TOPIC_TASK_STATUS
         await self.bus.publish(
             topic=topic,
-            trace_id=str(task.trace_id),
+            trace_id=str(task.id),
             event_type=f"task.state.{new_state.value}",
             producer=agent,
             payload={
@@ -141,6 +140,7 @@ class TaskService:
                 "from": old_state.value,
                 "to": new_state.value,
                 "reason": reason,
+                "assignee_org": task.org,
             },
         )
 
@@ -152,22 +152,25 @@ class TaskService:
 
     async def request_dispatch(
         self,
-        task_id: uuid.UUID,
+        task_id: str,
         target_agent: str,
         message: str = "",
     ):
         """发布 task.dispatch 事件，由 DispatchWorker 消费执行。"""
         task = await self._get_task(task_id)
+        scheduler = dict(task.scheduler or {})
+        dispatch_round = int(scheduler.get("lastDispatchRound", 0) or 0) + 1
         await self.bus.publish(
             topic=TOPIC_TASK_DISPATCH,
-            trace_id=str(task.trace_id),
+            trace_id=str(task.id),
             event_type="task.dispatch.request",
             producer="task_service",
             payload={
                 "task_id": str(task_id),
                 "agent": target_agent,
                 "message": message,
-                "state": task.state.value,
+                "state": task.state.value if isinstance(task.state, TaskState) else str(task.state),
+                "dispatch_round": dispatch_round,
             },
         )
         log.info(f"Dispatch requested: task {task_id} → agent {target_agent}")
@@ -176,7 +179,7 @@ class TaskService:
 
     async def add_progress(
         self,
-        task_id: uuid.UUID,
+        task_id: str,
         agent: str,
         content: str,
     ) -> Task:
@@ -195,7 +198,7 @@ class TaskService:
 
     async def update_todos(
         self,
-        task_id: uuid.UUID,
+        task_id: str,
         todos: list[dict],
     ) -> Task:
         task = await self._get_task(task_id)
@@ -206,7 +209,7 @@ class TaskService:
 
     async def update_scheduler(
         self,
-        task_id: uuid.UUID,
+        task_id: str,
         scheduler: dict,
     ) -> Task:
         task = await self._get_task(task_id)
@@ -217,7 +220,7 @@ class TaskService:
 
     # ── 查询 ──
 
-    async def get_task(self, task_id: uuid.UUID) -> Task:
+    async def get_task(self, task_id: str) -> Task:
         return await self._get_task(task_id)
 
     async def list_tasks(
@@ -231,9 +234,9 @@ class TaskService:
         stmt = select(Task)
         conditions = []
         if state is not None:
-            conditions.append(Task.state == state)
+            conditions.append(Task.state == state.value)
         if assignee_org is not None:
-            conditions.append(Task.assignee_org == assignee_org)
+            conditions.append(Task.org == assignee_org)
         if priority is not None:
             conditions.append(Task.priority == priority)
         if conditions:
@@ -249,10 +252,11 @@ class TaskService:
         completed_tasks = {}
         for t in tasks:
             d = t.to_dict()
-            if t.state in TERMINAL_STATES:
-                completed_tasks[str(t.task_id)] = d
+            st = t.state if isinstance(t.state, TaskState) else TaskState(t.state)
+            if st in TERMINAL_STATES:
+                completed_tasks[str(t.id)] = d
             else:
-                active_tasks[str(t.task_id)] = d
+                active_tasks[str(t.id)] = d
         return {
             "tasks": active_tasks,
             "completed_tasks": completed_tasks,
@@ -260,15 +264,15 @@ class TaskService:
         }
 
     async def count_tasks(self, state: TaskState | None = None) -> int:
-        stmt = select(func.count(Task.task_id))
+        stmt = select(func.count(Task.id))
         if state is not None:
-            stmt = stmt.where(Task.state == state)
+            stmt = stmt.where(Task.state == state.value)
         result = await self.db.execute(stmt)
         return result.scalar_one()
 
     # ── 内部 ──
 
-    async def _get_task(self, task_id: uuid.UUID) -> Task:
+    async def _get_task(self, task_id: str) -> Task:
         task = await self.db.get(Task, task_id)
         if task is None:
             raise ValueError(f"Task not found: {task_id}")

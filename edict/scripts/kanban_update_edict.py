@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(message
 # Edict API 地址 — 环境变量 > 默认 localhost:8000
 EDICT_API_URL = os.environ.get('EDICT_API_URL', 'http://localhost:8000')
 
-# 是否启用 API 模式（EDICT_MODE=api | json | auto）
+# API 模式（EDICT_MODE=api | auto，不再支持 json 降级）
 EDICT_MODE = os.environ.get('EDICT_MODE', 'auto').lower()
 
 # ── 文本清洗逻辑（与旧版完全一致） ──
@@ -175,15 +175,8 @@ def _check_api():
 
 
 def _fallback_json():
-    """降级：导入旧版 kanban_update 逻辑。"""
-    # 回退到同目录下的旧版实现
-    old_path = pathlib.Path(__file__).parent / 'kanban_update_legacy.py'
-    if old_path.exists():
-        import importlib.util
-        spec = importlib.util.spec_from_file_location('kanban_legacy', old_path)
-        mod = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(mod)
-        return mod
+    """[DEPRECATED] JSON 降级已禁用 — Postgres 是唯一数据源。"""
+    log.error('⛔ JSON fallback 已禁用。Edict API 不可用，请检查后端服务。')
     return None
 
 

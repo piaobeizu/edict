@@ -293,6 +293,15 @@ chmod +x install.sh && ./install.sh
 
 #### 启动
 
+> 推荐（v2）：使用 compose 启动前后端与 worker（默认前端 8002，后端 8001）
+>
+> ```bash
+> docker compose -f edict/docker-compose.yml up -d --build
+> open http://127.0.0.1:8002
+> ```
+
+兼容旧看板（dashboard 模式）：
+
 ```bash
 # 终端 1：数据刷新循环
 bash scripts/run_loop.sh

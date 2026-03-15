@@ -20,6 +20,10 @@ from urllib.request import Request, urlopen
 # 引入文件锁工具，确保与其他脚本并发安全
 scripts_dir = str(pathlib.Path(__file__).parent.parent / "scripts")
 sys.path.insert(0, scripts_dir)
+# 确保 notify 包可被导入（位于 dashboard/ 目录下）
+dashboard_dir = str(pathlib.Path(__file__).parent)
+if dashboard_dir not in sys.path:
+    sys.path.insert(0, dashboard_dir)
 from file_lock import atomic_json_read, atomic_json_write, atomic_json_update
 from utils import validate_url
 
@@ -94,6 +98,16 @@ def load_tasks():
 
 
 def save_tasks(tasks):
+    """⚠️ DEPRECATED — v2 中 Postgres 是唯一数据源。
+    此函数仍然写 tasks_source.json 以兼容旧看板（port 7891），
+    但不应在新代码中调用。新代码应通过 TaskService 或 FastAPI API 操作 DB。
+    """
+    import warnings
+    warnings.warn(
+        "save_tasks() is deprecated. Use TaskService (Postgres) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
     atomic_json_write(DATA / "tasks_source.json", tasks)
 
     # Trigger refresh (异步，不阻塞，避免僵尸进程)
@@ -534,24 +548,25 @@ def _compute_checksum(content: str) -> str:
     return hashlib.sha256(content.encode()).hexdigest()[:16]
 
 
-def push_to_feishu():
-    """Push morning brief link to Feishu via webhook."""
-    cfg = read_json(DATA / "morning_brief_config.json", {})
-    webhook = cfg.get("feishu_webhook", "").strip()
-    if not webhook:
-        return
-    if not validate_url(
-        webhook,
-        allowed_schemes=("https",),
-        allowed_domains=("open.feishu.cn", "open.larksuite.com"),
-    ):
-        log.warning(f"飞书 Webhook URL 不合法: {webhook}")
-        return
+def _get_notify_service():
+    """获取通知服务实例（懒加载）"""
+    from notify.service import NotifyService
+    svc = NotifyService(DATA / "notify_config.json")
+    # 首次启动时自动迁移旧飞书 webhook 配置
+    svc.migrate_legacy(DATA / "morning_brief_config.json")
+    return svc
+
+
+def push_to_channels():
+    """Push morning brief to all enabled notify channels."""
+    from notify.message import NotifyMessage
+
     brief = read_json(DATA / "morning_brief.json", {})
     date_str = brief.get("date", "")
     total = sum(len(v) for v in (brief.get("categories") or {}).values())
     if not total:
         return
+
     cat_lines = []
     for cat, items in (brief.get("categories") or {}).items():
         if items:
@@ -562,60 +577,27 @@ def push_to_feishu():
         if len(date_str) == 8
         else date_str
     )
-    payload = json.dumps(
-        {
-            "msg_type": "interactive",
-            "card": {
-                "header": {
-                    "title": {
-                        "tag": "plain_text",
-                        "content": f"📰 天下要闻 · {date_fmt}",
-                    },
-                    "template": "blue",
-                },
-                "elements": [
-                    {
-                        "tag": "div",
-                        "text": {
-                            "tag": "lark_md",
-                            "content": f"共 **{total}** 条要闻已更新\n{summary}",
-                        },
-                    },
-                    {
-                        "tag": "action",
-                        "actions": [
-                            {
-                                "tag": "button",
-                                "text": {
-                                    "tag": "plain_text",
-                                    "content": "🔗 查看完整简报",
-                                },
-                                "url": "http://127.0.0.1:7891",
-                                "type": "primary",
-                            }
-                        ],
-                    },
-                    {
-                        "tag": "note",
-                        "elements": [
-                            {
-                                "tag": "plain_text",
-                                "content": f"采集于 {brief.get('generated_at', '')}",
-                            }
-                        ],
-                    },
-                ],
-            },
-        }
-    ).encode()
-    try:
-        req = Request(
-            webhook, data=payload, headers={"Content-Type": "application/json"}
-        )
-        resp = urlopen(req, timeout=10)
-        print(f"[飞书] 推送成功 ({resp.status})")
-    except Exception as e:
-        print(f"[飞书] 推送失败: {e}", file=sys.stderr)
+
+    message = NotifyMessage(
+        title=f"📰 天下要闻 · {date_fmt}",
+        body=f"共 **{total}** 条要闻已更新\n{summary}",
+        body_plain=f"共 {total} 条要闻已更新\n{summary}",
+        url="http://127.0.0.1:7891",
+        msg_type="brief",
+    )
+
+    svc = _get_notify_service()
+    results = svc.send_all(message)
+    for ch_id, r in results.items():
+        if r["ok"]:
+            print(f"[{ch_id}] 推送成功")
+        else:
+            print(f"[{ch_id}] 推送失败: {r['msg']}", file=sys.stderr)
+
+
+def push_to_feishu():
+    """向后兼容：旧调用入口，转发到 push_to_channels"""
+    push_to_channels()
 
 
 # 旨意标题最低要求
@@ -2636,6 +2618,12 @@ class Handler(BaseHTTPRequestHandler):
                         "activity": get_agent_activity(agent_id),
                     }
                 )
+        elif p == "/api/notify-channels":
+            try:
+                svc = _get_notify_service()
+                self.send_json({"ok": True, "channels": svc.get_channels_meta()})
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
         elif self._serve_static(p):
             pass  # 已由 _serve_static 处理 (JS/CSS/图片等)
         else:
@@ -2760,12 +2748,49 @@ class Handler(BaseHTTPRequestHandler):
                     if force:
                         cmd.append("--force")
                     subprocess.run(cmd, timeout=120)
-                    push_to_feishu()
+                    push_to_channels()
                 except Exception as e:
                     print(f"[refresh error] {e}", file=sys.stderr)
 
             threading.Thread(target=do_refresh, daemon=True).start()
             self.send_json({"ok": True, "message": "采集已触发，约30-60秒后刷新"})
+            return
+
+        if p == "/api/notify-config":
+            # 保存推送渠道配置
+            if not isinstance(body, dict) or "channels" not in body:
+                self.send_json({"ok": False, "error": "请求体必须包含 channels 字段"}, 400)
+                return
+            try:
+                svc = _get_notify_service()
+                cfg = svc.validate_and_normalize_config(body)
+                svc.save_config(cfg)
+                self.send_json({"ok": True, "message": "推送配置已保存"})
+            except ValueError as e:
+                self.send_json({"ok": False, "error": str(e)}, 400)
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
+            return
+
+        if p == "/api/notify-test":
+            # 测试指定渠道推送
+            if not isinstance(body, dict):
+                self.send_json({"ok": False, "error": "请求体必须是 JSON 对象"}, 400)
+                return
+            channel_id = body.get("channel_id", "").strip()
+            params = body.get("params", {})
+            if not channel_id:
+                self.send_json({"ok": False, "error": "channel_id required"}, 400)
+                return
+            if not isinstance(params, dict):
+                self.send_json({"ok": False, "error": "params 必须是对象"}, 400)
+                return
+            try:
+                svc = _get_notify_service()
+                result = svc.send_test(channel_id, params)
+                self.send_json(result)
+            except Exception as e:
+                self.send_json({"ok": False, "error": str(e)}, 500)
             return
 
         if p == "/api/add-skill":

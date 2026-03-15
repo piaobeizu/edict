@@ -22,6 +22,11 @@ import os
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "backend"))
 from app.models import Task, Event, Thought, Todo  # noqa
 from app.db import Base
+from app.config import get_settings
+
+# 使用运行时环境变量覆盖 alembic.ini 的默认 localhost 配置
+settings = get_settings()
+config.set_main_option("sqlalchemy.url", settings.database_url)
 
 target_metadata = Base.metadata
 

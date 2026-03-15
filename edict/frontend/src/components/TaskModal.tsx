@@ -62,6 +62,8 @@ export default function TaskModal() {
 
   const [activityData, setActivityData] = useState<TaskActivityData | null>(null);
   const [schedData, setSchedData] = useState<SchedulerStateData | null>(null);
+  const [extraMaterial, setExtraMaterial] = useState('');
+  const [materialSending, setMaterialSending] = useState(false);
   const laTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const logRef = useRef<HTMLDivElement>(null);
 
@@ -112,6 +114,11 @@ export default function TaskModal() {
   useEffect(() => {
     if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
   }, [activityData?.activity?.length]);
+
+  useEffect(() => {
+    setExtraMaterial('');
+    setMaterialSending(false);
+  }, [modalTaskId]);
 
   if (!modalTaskId || !task) return null;
 
@@ -209,6 +216,53 @@ export default function TaskModal() {
     }
   };
 
+  const resolveDispatchAgent = (t: Task): string | null => {
+    if (t.state === 'Pending' || t.state === 'Taizi') return 'taizi';
+    if (t.state === 'Zhongshu') return 'zhongshu';
+    if (t.state === 'Menxia') return 'menxia';
+    if (t.state === 'Assigned' || t.state === 'Review' || t.state === 'Next') return 'shangshu';
+    if (t.state === 'Doing') {
+      const orgMap: Record<string, string> = {
+        户部: 'hubu',
+        礼部: 'libu',
+        兵部: 'bingbu',
+        刑部: 'xingbu',
+        工部: 'gongbu',
+        吏部: 'libu_hr',
+      };
+      return orgMap[(t.org || '').trim()] || null;
+    }
+    return null;
+  };
+
+  const doSupplement = async () => {
+    const agent = resolveDispatchAgent(task);
+    if (!agent) {
+      toast('当前状态暂无可自动识别的经办 Agent', 'err');
+      return;
+    }
+    if (!extraMaterial.trim()) {
+      toast('请先填写补充材料', 'err');
+      return;
+    }
+    try {
+      setMaterialSending(true);
+      const r = await api.dispatchTask(task.id, agent, `【补充材料】\n${extraMaterial.trim()}`);
+      if (r.ok) {
+        toast(`📨 已补发至 ${AGENT_LABELS[agent] || agent}`, 'ok');
+        setExtraMaterial('');
+        fetchActivity();
+        fetchSched();
+      } else {
+        toast(r.error || '补发失败', 'err');
+      }
+    } catch {
+      toast('服务器连接失败', 'err');
+    } finally {
+      setMaterialSending(false);
+    }
+  };
+
   const handleStop = () => {
     const reason = prompt('请输入叫停原因（可留空）：');
     if (reason === null) return;
@@ -297,6 +351,39 @@ export default function TaskModal() {
             )}
           </div>
 
+          {/* Supplemental material */}
+          {!['Done', 'Cancelled'].includes(task.state) && (
+            <div style={{ marginTop: 10, marginBottom: 14, border: '1px solid var(--line)', borderRadius: 8, padding: 10, background: 'var(--panel2)' }}>
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>🧩 补充材料</div>
+              <div style={{ fontSize: 11, color: 'var(--muted)', marginBottom: 8 }}>
+                可将新增背景/约束补发给当前经办。
+              </div>
+              <textarea
+                className="tpl-input"
+                style={{ width: '100%', minHeight: 82, resize: 'vertical' }}
+                value={extraMaterial}
+                onChange={(e) => setExtraMaterial(e.target.value)}
+                placeholder="输入补充材料后点击右侧按钮发送"
+              />
+              <div style={{ marginTop: 8, display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  className="btn-action"
+                  onClick={doSupplement}
+                  disabled={materialSending}
+                  style={{
+                    background: '#3b82f622',
+                    color: '#60a5fa',
+                    border: '1px solid #3b82f655',
+                    opacity: materialSending ? 0.6 : 1,
+                    cursor: materialSending ? 'not-allowed' : 'pointer',
+                  }}
+                >
+                  {materialSending ? '发送中…' : `📨 发送给${AGENT_LABELS[resolveDispatchAgent(task) || ''] || '当前经办'}`}
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Scheduler Section */}
           <div className="sched-section">
             <div className="sched-head">
@@ -374,9 +461,11 @@ export default function TaskModal() {
               <div className="fl-timeline">
                 {flowLog.map((fl, i) => {
                   const col = deptColor(fl.from || '');
+                  const ts = (fl.at || fl.ts || '').toString();
+                  const remark = (fl.remark || fl.reason || '').toString();
                   return (
                     <div className="fl-item" key={i}>
-                      <div className="fl-time">{fl.at ? fl.at.substring(11, 16) : ''}</div>
+                      <div className="fl-time">{ts ? ts.substring(11, 16) : ''}</div>
                       <div className="fl-dot" style={{ background: col }} />
                       <div className="fl-content">
                         <div className="fl-who">
@@ -384,7 +473,7 @@ export default function TaskModal() {
                           <span style={{ color: 'var(--muted)' }}> → </span>
                           <span className="to" style={{ color: deptColor(fl.to || '') }}>{fl.to}</span>
                         </div>
-                        <div className="fl-rem">{fl.remark}</div>
+                        <div className="fl-rem">{remark}</div>
                       </div>
                     </div>
                   );
@@ -485,6 +574,8 @@ function LiveActivitySection({
 
   // Resource summary
   const rs = data.resourceSummary;
+  const artifacts = data.artifacts || [];
+  const retrySummary = data.retrySummary;
 
   // Group non-flow activity by agent
   const flowItems = activity.filter((a) => a.kind === 'flow');
@@ -558,6 +649,76 @@ function LiveActivitySection({
               ⏳ {rs.totalElapsedSec >= 60 ? `${Math.floor(rs.totalElapsedSec / 60)}分` : ''}{rs.totalElapsedSec % 60}秒
             </span>
           )}
+        </div>
+      )}
+
+      {/* Retry Records */}
+      {retrySummary && retrySummary.count > 0 && (
+        <div style={{ padding: '6px 0 8px', borderBottom: '1px solid var(--line)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>🔁 失败重试记录（{retrySummary.count}）</div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            {retrySummary.records.slice(-8).map((r, idx) => (
+              <div key={idx} style={{ fontSize: 11, color: 'var(--muted)', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <span>{fmtActivityTime(r.at)}</span>
+                <span>{AGENT_LABELS[r.agent || ''] || r.agent || 'unknown'}</span>
+                <span>attempts: {r.attempts || 1}</span>
+                <span>type: {r.errorType || 'unknown'}</span>
+                {r.exhausted && <span style={{ color: '#ef4444' }}>exhausted</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Artifacts */}
+      {artifacts.length > 0 && (
+        <div style={{ padding: '6px 0 8px', borderBottom: '1px solid var(--line)' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, marginBottom: 6 }}>📦 产出文件</div>
+          <div style={{ display: 'grid', gap: 4 }}>
+            {artifacts.slice(-10).map((a, idx) => (
+              <div key={idx} style={{ fontSize: 11, fontFamily: 'monospace', display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--muted)' }}>[{a.kind || 'file'}]</span>
+                {/^https?:\/\//.test(a.path) ? (
+                  <a href={a.path} target="_blank" rel="noreferrer" style={{ color: '#60a5fa' }}>{a.path}</a>
+                ) : (
+                  a.downloadable ? (
+                    <a
+                      href={api.artifactDownloadUrl(a.path)}
+                      target="_blank"
+                      rel="noreferrer"
+                      style={{ color: '#60a5fa' }}
+                      title="下载文件"
+                    >
+                      {a.path}
+                    </a>
+                  ) : (
+                    <span style={{ color: 'var(--muted)' }}>{a.path}</span>
+                  )
+                )}
+                {!/^https?:\/\//.test(a.path) && a.downloadable && (
+                  <a
+                    href={api.artifactDownloadUrl(a.path)}
+                    style={{ fontSize: 10, padding: '1px 6px', border: '1px solid var(--line)', borderRadius: 6, background: 'var(--panel)', color: 'var(--muted)', textDecoration: 'none' }}
+                    download
+                    title="下载"
+                  >
+                    下载
+                  </a>
+                )}
+                {!/^https?:\/\//.test(a.path) && !a.downloadable && (
+                  <span style={{ fontSize: 10, color: '#f59e0b' }}>文件不存在</span>
+                )}
+                <button
+                  type="button"
+                  style={{ fontSize: 10, padding: '1px 6px', border: '1px solid var(--line)', borderRadius: 6, background: 'var(--panel)', color: 'var(--muted)' }}
+                  onClick={() => navigator.clipboard?.writeText(a.path)}
+                  title="复制路径"
+                >
+                  复制
+                </button>
+              </div>
+            ))}
+          </div>
         </div>
       )}
 

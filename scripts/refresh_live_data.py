@@ -18,14 +18,38 @@ def output_meta(path):
     return {"exists": True, "lastModified": ts}
 
 
+def _try_load_tasks_from_api():
+    """尝试从 Edict API 加载任务（Postgres 数据源）。"""
+    import os
+    from urllib.request import Request, urlopen
+    api_url = os.environ.get('EDICT_API_URL', 'http://localhost:8001')
+    try:
+        req = Request(f'{api_url}/api/tasks/live-status', headers={'Accept': 'application/json'})
+        resp = urlopen(req, timeout=5)
+        data = json.loads(resp.read())
+        # live-status 返回 {tasks: {id: {...}}, completed_tasks: {id: {...}}}
+        all_tasks = []
+        for t in (data.get('tasks') or {}).values():
+            all_tasks.append(t)
+        for t in (data.get('completed_tasks') or {}).values():
+            all_tasks.append(t)
+        return all_tasks
+    except Exception as e:
+        log.warning(f'从 API 加载任务失败，降级到 JSON: {e}')
+        return None
+
+
 def main():
     # 使用 officials_stats.json（与 sync_officials_stats.py 统一）
     officials_data = read_json(DATA / 'officials_stats.json', {})
     officials = officials_data.get('officials', []) if isinstance(officials_data, dict) else officials_data
-    # 任务源优先：tasks_source.json（可对接外部系统同步写入）
-    tasks = atomic_json_read(DATA / 'tasks_source.json', [])
-    if not tasks:
-        tasks = read_json(DATA / 'tasks.json', [])
+
+    # [v2] 优先从 API (Postgres) 读任务，失败时降级到 JSON 文件
+    tasks = _try_load_tasks_from_api()
+    if tasks is None:
+        tasks = atomic_json_read(DATA / 'tasks_source.json', [])
+        if not tasks:
+            tasks = read_json(DATA / 'tasks.json', [])
 
     sync_status = read_json(DATA / 'sync_status.json', {})
 

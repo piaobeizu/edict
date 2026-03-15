@@ -19,8 +19,10 @@ export default function MemorialPanel() {
     md += `- **状态**: ${t.state}\n`;
     md += `- **负责部门**: ${t.org}\n`;
     if (fl.length) {
-      const startAt = fl[0].at ? fl[0].at.substring(0, 19).replace('T', ' ') : '未知';
-      const endAt = fl[fl.length - 1].at ? fl[fl.length - 1].at.substring(0, 19).replace('T', ' ') : '未知';
+      const first = fl[0];
+      const last = fl[fl.length - 1];
+      const startAt = first?.at ? first.at.substring(0, 19).replace('T', ' ') : '未知';
+      const endAt = last?.at ? last.at.substring(0, 19).replace('T', ' ') : '未知';
       md += `- **开始时间**: ${startAt}\n`;
       md += `- **完成时间**: ${endAt}\n`;
     }

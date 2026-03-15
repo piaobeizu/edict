@@ -320,7 +320,10 @@ def main():
                 log.error(f'merge existing JJC tasks failed: {e}')
                 pass
 
-        atomic_json_write(DATA / 'tasks_source.json', tasks)
+        # [v2] 不再写 tasks_source.json — Postgres 是唯一数据源。
+        # JJC 任务由 dispatch_worker + kanban_update_edict 通过 API 维护。
+        # 仅保留 sync_status.json 用于看板健康检查。
+        # atomic_json_write(DATA / 'tasks_source.json', tasks)  # DEPRECATED
 
         duration_ms = int((time.time() - start) * 1000)
         write_status(

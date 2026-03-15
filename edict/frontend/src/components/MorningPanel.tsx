@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from 'react';
 import { useStore } from '../store';
 import { api } from '../api';
-import type { SubConfig, MorningNewsItem } from '../api';
+import type { SubConfig, MorningNewsItem, ChannelMeta } from '../api';
 
 const CAT_META: Record<string, { icon: string; color: string; desc: string }> = {
   '政治': { icon: '🏛️', color: '#6a9eff', desc: '全球政治动态' },
@@ -192,7 +192,6 @@ export default function MorningPanel() {
           onAddFeed={addFeed}
           onRemoveFeed={removeFeed}
           onSave={saveConfig}
-          onSetWebhook={(v) => setLocalConfig({ ...localConfig, feishu_webhook: v })}
         />
       )}
 
@@ -295,7 +294,6 @@ function SubConfigPanel({
   onAddFeed,
   onRemoveFeed,
   onSave,
-  onSetWebhook,
 }: {
   config: SubConfig;
   enabledSet: Set<string>;
@@ -305,7 +303,6 @@ function SubConfigPanel({
   onAddFeed: (name: string, url: string, cat: string) => void;
   onRemoveFeed: (i: number) => void;
   onSave: () => void;
-  onSetWebhook: (v: string) => void;
 }) {
   const [newKw, setNewKw] = useState('');
   const [feedName, setFeedName] = useState('');
@@ -396,21 +393,210 @@ function SubConfigPanel({
         </div>
       </div>
 
-      {/* Feishu Webhook */}
-      <div style={{ marginBottom: 14 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 6 }}>飞书 Webhook</div>
-        <input
-          type="text"
-          value={config.feishu_webhook || ''}
-          onChange={(e) => onSetWebhook(e.target.value)}
-          placeholder="https://open.feishu.cn/open-apis/bot/v2/hook/..."
-          style={{ width: '100%', padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--line)', borderRadius: 6, color: 'var(--text)', fontSize: 12, outline: 'none' }}
-        />
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 14 }}>
+        <button className="tpl-go" onClick={onSave} style={{ fontSize: 12, padding: '6px 16px' }}>
+          💾 保存订阅配置
+        </button>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-        <button className="tpl-go" onClick={onSave} style={{ fontSize: 12, padding: '6px 16px' }}>
-          💾 保存配置
+      {/* 推送渠道配置 */}
+      <NotifyChannelsPanel />
+    </div>
+  );
+}
+
+
+/* ── 推送渠道配置面板 ── */
+
+function NotifyChannelsPanel() {
+  const toast = useStore((s) => s.toast);
+  const [channels, setChannels] = useState<ChannelMeta[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [testing, setTesting] = useState<string | null>(null);
+  const [testResults, setTestResults] = useState<Record<string, { ok: boolean; msg: string }>>({});
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    api.notifyChannels()
+      .then((r) => {
+        if (r.ok && r.channels) setChannels(r.channels);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const toggleChannel = (channelId: string) => {
+    setChannels((prev) =>
+      prev.map((ch) =>
+        ch.channel_id === channelId ? { ...ch, enabled: !ch.enabled } : ch
+      )
+    );
+  };
+
+  const updateParam = (channelId: string, key: string, value: string) => {
+    setChannels((prev) =>
+      prev.map((ch) =>
+        ch.channel_id === channelId
+          ? { ...ch, params: { ...ch.params, [key]: value } }
+          : ch
+      )
+    );
+  };
+
+  const saveAll = async () => {
+    setSaving(true);
+    try {
+      const configObj: Record<string, Record<string, unknown>> = {};
+      for (const ch of channels) {
+        if (ch.enabled || Object.values(ch.params).some((v) => v)) {
+          configObj[ch.channel_id] = { enabled: ch.enabled, ...ch.params };
+        }
+      }
+      const r = await api.saveNotifyConfig({ channels: configObj });
+      if (r.ok) toast('推送渠道配置已保存', 'ok');
+      else toast(r.error || '保存失败', 'err');
+    } catch {
+      toast('服务器连接失败', 'err');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const testChannel = async (ch: ChannelMeta) => {
+    setTesting(ch.channel_id);
+    setTestResults((prev) => ({ ...prev, [ch.channel_id]: { ok: false, msg: '测试中…' } }));
+    try {
+      const r = await api.testNotifyChannel(ch.channel_id, ch.params);
+      setTestResults((prev) => ({
+        ...prev,
+        [ch.channel_id]: { ok: r.ok, msg: r.msg || r.message || r.error || '未知' },
+      }));
+      if (r.ok) toast(`${ch.display_name} 测试成功`, 'ok');
+      else toast(`${ch.display_name} 测试失败: ${r.msg || r.error}`, 'err');
+    } catch {
+      setTestResults((prev) => ({
+        ...prev,
+        [ch.channel_id]: { ok: false, msg: '网络错误' },
+      }));
+    } finally {
+      setTesting(null);
+    }
+  };
+
+  if (loading) return <div style={{ fontSize: 12, color: 'var(--muted)', padding: 8 }}>加载推送渠道…</div>;
+  if (!channels.length) return null;
+
+  return (
+    <div style={{ marginBottom: 14 }}>
+      <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 10 }}>📡 推送渠道</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {channels.map((ch) => {
+          const tr = testResults[ch.channel_id];
+          return (
+            <div
+              key={ch.channel_id}
+              style={{
+                padding: '10px 12px',
+                background: ch.enabled ? 'var(--bg)' : 'transparent',
+                border: `1px solid ${ch.enabled ? 'var(--acc)' : 'var(--line)'}`,
+                borderRadius: 8,
+                transition: 'all 0.2s',
+              }}
+            >
+              {/* Header */}
+              <div
+                style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}
+                onClick={() => toggleChannel(ch.channel_id)}
+              >
+                <span style={{ fontSize: 16 }}>{ch.icon}</span>
+                <span style={{ fontSize: 12, fontWeight: 600, flex: 1 }}>{ch.display_name}</span>
+                <span style={{
+                  fontSize: 10,
+                  padding: '2px 8px',
+                  borderRadius: 4,
+                  background: ch.enabled ? 'var(--ok)' : 'var(--line)',
+                  color: ch.enabled ? '#fff' : 'var(--muted)',
+                }}>
+                  {ch.enabled ? '✓ 已启用' : '未启用'}
+                </span>
+              </div>
+
+              {/* Config fields (only when enabled) */}
+              {ch.enabled && (
+                <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                  {ch.config_schema.map((field) => (
+                    <div key={field.key} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <label style={{ fontSize: 11, color: 'var(--muted)', minWidth: 80, textAlign: 'right' }}>
+                        {field.label}
+                        {field.required && <span style={{ color: 'var(--danger)' }}>*</span>}
+                      </label>
+                      {field.type === 'select' ? (
+                        <select
+                          value={ch.params[field.key] || field.default || ''}
+                          onChange={(e) => updateParam(ch.channel_id, field.key, e.target.value)}
+                          style={{
+                            flex: 1, padding: '5px 8px', background: 'var(--panel2)',
+                            border: '1px solid var(--line)', borderRadius: 4,
+                            color: 'var(--text)', fontSize: 11, outline: 'none',
+                          }}
+                        >
+                          {(field.options || []).map((o) => (
+                            <option key={o} value={o}>{o}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={field.type === 'password' ? 'password' : 'text'}
+                          value={ch.params[field.key] || ''}
+                          onChange={(e) => updateParam(ch.channel_id, field.key, e.target.value)}
+                          placeholder={field.type === 'password' && ch.secret_state?.[field.key]?.has_value
+                            ? `${field.placeholder || ''}（已保存：${ch.secret_state[field.key].masked}，留空则保持不变）`
+                            : (field.placeholder || '')}
+                          style={{
+                            flex: 1, padding: '5px 8px', background: 'var(--panel2)',
+                            border: '1px solid var(--line)', borderRadius: 4,
+                            color: 'var(--text)', fontSize: 11, outline: 'none',
+                          }}
+                        />
+                      )}
+                    </div>
+                  ))}
+                  {ch.config_schema.some((field) => field.type === 'password') && (
+                    <div style={{ fontSize: 10, color: 'var(--muted)', marginLeft: 88 }}>
+                      密码/Token 字段不会回传明文；留空表示沿用已保存值。
+                    </div>
+                  )}
+                  {/* Test button + result */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <button
+                      className="btn btn-g"
+                      disabled={testing === ch.channel_id}
+                      onClick={() => testChannel(ch)}
+                      style={{ fontSize: 10, padding: '3px 10px' }}
+                    >
+                      {testing === ch.channel_id ? '⏳ 测试中…' : '🧪 测试'}
+                    </button>
+                    {tr && (
+                      <span style={{ fontSize: 10, color: tr.ok ? 'var(--ok)' : 'var(--danger)' }}>
+                        {tr.ok ? '✅ ' : '❌ '}{tr.msg}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {/* Save channels button */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+        <button
+          className="tpl-go"
+          disabled={saving}
+          onClick={saveAll}
+          style={{ fontSize: 11, padding: '5px 14px' }}
+        >
+          {saving ? '⏳ 保存中…' : '💾 保存推送配置'}
         </button>
       </div>
     </div>

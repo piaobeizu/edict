@@ -15,18 +15,17 @@ Lifespan 管理：
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .config import get_settings
 from .services.event_bus import get_event_bus
-from .api import tasks, agents, events, admin, websocket
+from .services.structured_log import setup_structured_logging
+from .api import tasks, agents, events, admin, websocket, insights, metrics, compat, files, notify, dashboard
+from .services.task_service import TaskService
 from .api import legacy
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
-)
+setup_structured_logging()
 log = logging.getLogger("edict")
 
 
@@ -68,8 +67,15 @@ app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
 app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])
+app.include_router(metrics.router, prefix="/api/admin", tags=["metrics"])
+app.include_router(insights.router, prefix="/api", tags=["insights"])
+app.include_router(compat.router, prefix="/api", tags=["compat"])
+app.include_router(dashboard.router, prefix="/api", tags=["dashboard"])
+app.include_router(dashboard.health_router, tags=["health"])
+app.include_router(files.router, prefix="/api/files", tags=["files"])
 app.include_router(websocket.router, tags=["websocket"])
 app.include_router(legacy.router, prefix="/api/tasks", tags=["legacy"])
+app.include_router(notify.router, prefix="/api", tags=["notify"])
 
 
 @app.get("/health")
@@ -91,3 +97,9 @@ async def api_root():
             "health": "/health",
         },
     }
+
+
+@app.get("/api/live-status")
+async def live_status_compat(svc: TaskService = Depends(tasks.get_task_service)):
+    """兼容旧前端：/api/live-status -> /api/tasks/live-status。"""
+    return await svc.get_live_status()

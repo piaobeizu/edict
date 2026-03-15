@@ -26,6 +26,7 @@ TOPIC_TASK_PLANNING_COMPLETE = "task.planning.complete"
 TOPIC_TASK_REVIEW_REQUEST = "task.review.request"
 TOPIC_TASK_REVIEW_RESULT = "task.review.result"
 TOPIC_TASK_DISPATCH = "task.dispatch"
+TOPIC_TASK_DISPATCH_DEAD_LETTER = "task.dispatch.dead_letter"
 TOPIC_TASK_STATUS = "task.status"
 TOPIC_TASK_COMPLETED = "task.completed"
 TOPIC_TASK_CLOSED = "task.closed"
@@ -98,6 +99,29 @@ class EventBus:
         stream_key = self._stream_key(topic)
         entry_id = await self.redis.xadd(stream_key, event, maxlen=10000)
         log.debug(f"📤 Published {topic}/{event_type} → {stream_key} [{entry_id}] trace={trace_id}")
+
+        # Best-effort 持久化到 events 表（用于审计与回放）
+        try:
+            from ..db import async_session
+            from ..models.event import Event
+
+            async with async_session() as db:
+                db.add(
+                    Event(
+                        event_id=uuid.UUID(event["event_id"]),
+                        trace_id=trace_id,
+                        topic=topic,
+                        event_type=event_type,
+                        producer=producer,
+                        payload=payload or {},
+                        meta=meta or {},
+                        timestamp=datetime.now(timezone.utc),
+                    )
+                )
+                await db.commit()
+        except Exception as e:
+            # 不影响主链路：Redis 发布成功即可继续
+            log.warning("Failed to persist event to DB: %s", e)
 
         # 同时发布到 Pub/Sub 频道（供 WebSocket 实时推送）
         await self.redis.publish(f"edict:pubsub:{topic}", json.dumps(event, ensure_ascii=False))

@@ -12,6 +12,7 @@ export default function TemplatePanel() {
   const [formTpl, setFormTpl] = useState<Template | null>(null);
   const [formVals, setFormVals] = useState<Record<string, string>>({});
   const [previewCmd, setPreviewCmd] = useState('');
+  const [extraMaterial, setExtraMaterial] = useState('');
 
   let tpls = TEMPLATES;
   if (tplCatFilter !== '全部') tpls = tpls.filter((t) => t.cat === tplCatFilter);
@@ -24,6 +25,7 @@ export default function TemplatePanel() {
     setFormVals(vals);
     setFormTpl(tpl);
     setPreviewCmd('');
+    setExtraMaterial('');
   };
 
   const buildCmd = (tpl: Template) => {
@@ -75,6 +77,14 @@ export default function TemplatePanel() {
         params,
       });
       if (r.ok) {
+        if (r.taskId && extraMaterial.trim()) {
+          const rr = await api.dispatchTask(
+            r.taskId,
+            'taizi',
+            `【补充材料】\n${extraMaterial.trim()}`,
+          );
+          if (!rr.ok) toast(`补充材料发送失败：${rr.error || '未知错误'}`, 'err');
+        }
         toast(`📜 ${r.taskId} 旨意已下达`, 'ok');
         setFormTpl(null);
         loadAll();
@@ -183,6 +193,17 @@ export default function TemplatePanel() {
                     )}
                   </div>
                 ))}
+
+                <div className="tpl-field">
+                  <label className="tpl-label">补充材料（可选）</label>
+                  <textarea
+                    className="tpl-input"
+                    style={{ minHeight: 96, resize: 'vertical' }}
+                    value={extraMaterial}
+                    onChange={(e) => setExtraMaterial(e.target.value)}
+                    placeholder="可填写背景、限制条件、补充上下文。下旨后会自动代发给太子。"
+                  />
+                </div>
 
                 {previewCmd && (
                   <div

@@ -3,7 +3,8 @@ WORKDIR /app
 COPY package.json ./
 RUN npm install
 COPY . .
-RUN npm run build
+# 强制输出到 /app/dist，避免使用 vite.config 中相对 outDir 导致拷贝旧产物
+RUN npx vite build --outDir /app/dist
 
 FROM nginx:alpine
 COPY --from=build /app/dist /usr/share/nginx/html
