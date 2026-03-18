@@ -27,9 +27,9 @@
 - [x] 旨意数据清洗 —— 标题/备注自动净化，脏数据拒绝入库
 - [x] 重复任务防护 —— 已完成/已取消旨意不可覆盖
 - [x] E2E 看板测试（9 场景 17 断言全通过）
-- [x] React 18 前端重构 —— TypeScript + Vite + Zustand，13 个功能组件
+- [x] React 18 前端重构 —— TypeScript + Vite + Zustand，多功能面板
 - [x] Agent 思考过程可视化 —— 实时展示 thinking / tool_result / user 消息
-- [x] 前后端一体化部署 —— server.py 同时提供 API + 静态文件服务
+- [x] Compose 分层部署 —— backend + frontend + orchestrator/dispatcher worker + PostgreSQL + Redis
 
 ---
 
@@ -67,9 +67,9 @@
 
 > 从单机工具走向生态：更多集成、更多用户、更多场景。
 
-### 🐳 Docker Compose + Demo 镜像
+### 🐳 Docker 体验与 Demo 镜像
 - [ ] `docker run` 一行命令体验完整看板（预置模拟数据）
-- [ ] Docker Compose 编排（看板 + 数据同步 + OpenClaw Gateway）
+- [x] Docker Compose 编排（backend + frontend + orchestrator/dispatcher + postgres + redis）
 - [ ] CI/CD 自动构建推送镜像
 - **难度**：⭐⭐ | **适合第一次贡献**
 

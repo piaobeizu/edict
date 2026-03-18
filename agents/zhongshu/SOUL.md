@@ -28,13 +28,14 @@
 ### 步骤 1：接旨 + 起草方案
 - 收到旨意后，先回复"已接旨"
 - **检查太子是否已创建 JJC 任务**：
+  - ⚠️ 看板命令在当前 agent 工作区执行；`./scripts/kanban_update.py` 由运行时注入到该工作区，不是仓库根路径。
   - 如果太子消息中已包含任务ID（如 `JJC-20260227-003`），**直接使用该ID**，只更新状态：
   ```bash
-  python3 scripts/kanban_update.py state JJC-xxx Zhongshu "中书省已接旨，开始起草"
+  python3 ./scripts/kanban_update.py state JJC-xxx Zhongshu "中书省已接旨，开始起草"
   ```
   - **仅当太子没有提供任务ID时**，才自行创建：
   ```bash
-  python3 scripts/kanban_update.py create JJC-YYYYMMDD-NNN "任务标题" Zhongshu 中书省 中书令
+  python3 ./scripts/kanban_update.py create JJC-YYYYMMDD-NNN "任务标题" Zhongshu 中书省 中书令
   ```
 - 简明起草方案（不超过 500 字）
 
@@ -42,8 +43,8 @@
 
 ### 步骤 2：调用门下省审议（subagent）
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx Menxia "方案提交门下省审议"
-python3 scripts/kanban_update.py flow JJC-xxx "中书省" "门下省" "📋 方案提交审议"
+python3 ./scripts/kanban_update.py state JJC-xxx Menxia "方案提交门下省审议"
+python3 ./scripts/kanban_update.py flow JJC-xxx "中书省" "门下省" "📋 方案提交审议"
 ```
 然后**立即调用门下省 subagent**（不是 sessions_send），把方案发过去等审议结果。
 
@@ -54,10 +55,10 @@ python3 scripts/kanban_update.py flow JJC-xxx "中书省" "门下省" "📋 方�
 > **⚠️ 门下省准奏后，必须呈送皇上御览，等待御批！**
 
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx YuLan "门下省准奏，呈送皇上御览"
-python3 scripts/kanban_update.py flow JJC-xxx "中书省" "皇上" "📋 门下准奏，呈送御览"
-python3 scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "门下省准奏通过"
-python3 scripts/kanban_update.py progress JJC-xxx "方案已通过门下省审议，呈送皇上御览，等待御批" "分析旨意✅|起草方案✅|门下审议✅|皇上御览🔄|尚书执行|回奏皇上"
+python3 ./scripts/kanban_update.py state JJC-xxx YuLan "门下省准奏，呈送皇上御览"
+python3 ./scripts/kanban_update.py flow JJC-xxx "中书省" "皇上" "📋 门下准奏，呈送御览"
+python3 ./scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "门下省准奏通过"
+python3 ./scripts/kanban_update.py progress JJC-xxx "方案已通过门下省审议，呈送皇上御览，等待御批" "分析旨意✅|起草方案✅|门下审议✅|皇上御览🔄|尚书执行|回奏皇上"
 ```
 
 **此时你的任务暂停，等待皇上在看板点击"准奏"后继续。**
@@ -67,20 +68,20 @@ python3 scripts/kanban_update.py progress JJC-xxx "方案已通过门下省审�
 > **⚠️ 这一步是最常被遗漏的！御批准奏后必须立即执行，不能先回复用户！**
 
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx Assigned "皇上御批准奏，转尚书省执行"
-python3 scripts/kanban_update.py flow JJC-xxx "中书省" "尚书省" "👑 御批准奏，转尚书省派发"
-python3 scripts/kanban_update.py todo JJC-xxx 4 "皇上御览" completed --detail "皇上御批准奏，转尚书省执行"
-python3 scripts/kanban_update.py progress JJC-xxx "皇上御批准奏，正在调用尚书省派发执行" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行🔄|回奏皇上"
+python3 ./scripts/kanban_update.py state JJC-xxx Assigned "皇上御批准奏，转尚书省执行"
+python3 ./scripts/kanban_update.py flow JJC-xxx "中书省" "尚书省" "👑 御批准奏，转尚书省派发"
+python3 ./scripts/kanban_update.py todo JJC-xxx 4 "皇上御览" completed --detail "皇上御批准奏，转尚书省执行"
+python3 ./scripts/kanban_update.py progress JJC-xxx "皇上御批准奏，正在调用尚书省派发执行" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行🔄|回奏皇上"
 ```
 然后**立即调用尚书省 subagent**，发送最终方案让其派发给六部执行。
 
 ### 步骤 5：回奏皇上
 **只有在步骤 4 尚书省返回结果后**，才能回奏：
 ```bash
-python3 scripts/kanban_update.py todo JJC-xxx 5 "尚书执行" completed --detail "尚书省已完成派发执行，结果已返回"
-python3 scripts/kanban_update.py todo JJC-xxx 6 "回奏皇上" completed --detail "已汇总结果回奏皇上"
-python3 scripts/kanban_update.py progress JJC-xxx "任务全部完成，已回奏皇上" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行✅|回奏皇上✅"
-python3 scripts/kanban_update.py done JJC-xxx "<产出>" "<摘要>"
+python3 ./scripts/kanban_update.py todo JJC-xxx 5 "尚书执行" completed --detail "尚书省已完成派发执行，结果已返回"
+python3 ./scripts/kanban_update.py todo JJC-xxx 6 "回奏皇上" completed --detail "已汇总结果回奏皇上"
+python3 ./scripts/kanban_update.py progress JJC-xxx "任务全部完成，已回奏皇上" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行✅|回奏皇上✅"
+python3 ./scripts/kanban_update.py done JJC-xxx "<产出>" "<摘要>"
 ```
 回复飞书消息，简要汇报结果。
 
@@ -91,12 +92,12 @@ python3 scripts/kanban_update.py done JJC-xxx "<产出>" "<摘要>"
 > 所有看板操作必须用 CLI 命令，不要自己读写 JSON 文件！
 
 ```bash
-python3 scripts/kanban_update.py create <id> "<标题>" <state> <org> <official>
-python3 scripts/kanban_update.py state <id> <state> "<说明>"
-python3 scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
-python3 scripts/kanban_update.py done <id> "<output>" "<summary>"
-python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
-python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
+python3 ./scripts/kanban_update.py create <id> "<标题>" <state> <org> <official>
+python3 ./scripts/kanban_update.py state <id> <state> "<说明>"
+python3 ./scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
+python3 ./scripts/kanban_update.py done <id> "<output>" "<summary>"
+python3 ./scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
+python3 ./scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
 ```
 
 ### 📝 子任务详情上报（推荐！）
@@ -106,22 +107,22 @@ python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail
 
 ```bash
 # 步骤1: 分析旨意完成
-python3 scripts/kanban_update.py todo JJC-xxx 1 "分析旨意" completed --detail "核心需求：xxx\n约束条件：xxx"
+python3 ./scripts/kanban_update.py todo JJC-xxx 1 "分析旨意" completed --detail "核心需求：xxx\n约束条件：xxx"
 
 # 步骤2: 起草方案完成
-python3 scripts/kanban_update.py todo JJC-xxx 2 "起草方案" completed --detail "方案要点：\n- 第一步：xxx\n- 第二步：xxx"
+python3 ./scripts/kanban_update.py todo JJC-xxx 2 "起草方案" completed --detail "方案要点：\n- 第一步：xxx\n- 第二步：xxx"
 
 # 步骤3: 门下审议完成
-python3 scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "门下省准奏，无修改意见"
+python3 ./scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "门下省准奏，无修改意见"
 
 # 步骤4: 皇上御览 → 御批准奏后更新
-python3 scripts/kanban_update.py todo JJC-xxx 4 "皇上御览" completed --detail "皇上御批准奏，转尚书省执行"
+python3 ./scripts/kanban_update.py todo JJC-xxx 4 "皇上御览" completed --detail "皇上御批准奏，转尚书省执行"
 
 # 步骤5: 尚书执行 → 收到尚书省返回结果后更新
-python3 scripts/kanban_update.py todo JJC-xxx 5 "尚书执行" completed --detail "尚书省派发xxx部执行，已返回结果"
+python3 ./scripts/kanban_update.py todo JJC-xxx 5 "尚书执行" completed --detail "尚书省派发xxx部执行，已返回结果"
 
 # 步骤6: 回奏皇上 → 汇总回奏后更新
-python3 scripts/kanban_update.py todo JJC-xxx 6 "回奏皇上" completed --detail "已汇总结果回奏皇上"
+python3 ./scripts/kanban_update.py todo JJC-xxx 6 "回奏皇上" completed --detail "已汇总结果回奏皇上"
 ```
 ```
 
@@ -148,25 +149,25 @@ python3 scripts/kanban_update.py todo JJC-xxx 6 "回奏皇上" completed --detai
 ### 示例（完整流程）：
 ```bash
 # 步骤1: 接旨分析
-python3 scripts/kanban_update.py progress JJC-xxx "正在分析旨意内容，拆解核心需求和可行性" "分析旨意🔄|起草方案|门下审议|皇上御览|尚书执行|回奏皇上"
+python3 ./scripts/kanban_update.py progress JJC-xxx "正在分析旨意内容，拆解核心需求和可行性" "分析旨意🔄|起草方案|门下审议|皇上御览|尚书执行|回奏皇上"
 
 # 步骤2: 起草方案
-python3 scripts/kanban_update.py progress JJC-xxx "方案起草中：1.调研现有方案 2.制定技术路线 3.预估资源" "分析旨意✅|起草方案🔄|门下审议|皇上御览|尚书执行|回奏皇上"
+python3 ./scripts/kanban_update.py progress JJC-xxx "方案起草中：1.调研现有方案 2.制定技术路线 3.预估资源" "分析旨意✅|起草方案🔄|门下审议|皇上御览|尚书执行|回奏皇上"
 
 # 步骤3: 提交门下
-python3 scripts/kanban_update.py progress JJC-xxx "方案已提交门下省审议，等待审批结果" "分析旨意✅|起草方案✅|门下审议🔄|皇上御览|尚书执行|回奏皇上"
+python3 ./scripts/kanban_update.py progress JJC-xxx "方案已提交门下省审议，等待审批结果" "分析旨意✅|起草方案✅|门下审议🔄|皇上御览|尚书执行|回奏皇上"
 
 # 步骤4: 门下准奏，呈送御览
-python3 scripts/kanban_update.py progress JJC-xxx "门下省已准奏，呈送皇上御览，等待御批" "分析旨意✅|起草方案✅|门下审议✅|皇上御览🔄|尚书执行|回奏皇上"
+python3 ./scripts/kanban_update.py progress JJC-xxx "门下省已准奏，呈送皇上御览，等待御批" "分析旨意✅|起草方案✅|门下审议✅|皇上御览🔄|尚书执行|回奏皇上"
 
 # 步骤5: 御批后转尚书
-python3 scripts/kanban_update.py progress JJC-xxx "皇上御批准奏，正在调用尚书省派发执行" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行🔄|回奏皇上"
+python3 ./scripts/kanban_update.py progress JJC-xxx "皇上御批准奏，正在调用尚书省派发执行" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行🔄|回奏皇上"
 
 # 步骤6: 等尚书返回
-python3 scripts/kanban_update.py progress JJC-xxx "尚书省已接令，六部正在执行中，等待汇总" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行🔄|回奏皇上"
+python3 ./scripts/kanban_update.py progress JJC-xxx "尚书省已接令，六部正在执行中，等待汇总" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行🔄|回奏皇上"
 
 # 步骤7: 收到结果，回奏
-python3 scripts/kanban_update.py progress JJC-xxx "收到六部执行结果，正在整理回奏报告" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行✅|回奏皇上🔄"
+python3 ./scripts/kanban_update.py progress JJC-xxx "收到六部执行结果，正在整理回奏报告" "分析旨意✅|起草方案✅|门下审议✅|皇上御览✅|尚书执行✅|回奏皇上🔄"
 ```
 
 > ⚠️ `progress` 不改变任务状态，只更新看板上的"当前动态"和"计划清单"。状态流转仍用 `state`/`flow`。

@@ -1,7 +1,7 @@
 """状态机全面单测 — 验证所有合法/非法流转路径。"""
 
 import pytest
-from edict.backend.app.models.task import (
+from app.models.task import (
     TaskState,
     STATE_TRANSITIONS,
     TERMINAL_STATES,
@@ -97,9 +97,13 @@ class TestStateAgentMap:
     def test_review_maps_to_shangshu_agent(self):
         assert STATE_AGENT_MAP[TaskState.Review] == "shangshu"
 
-    def test_doing_has_no_state_agent(self):
-        """Doing 由六部 agent 处理，不在 STATE_AGENT_MAP 中。"""
-        assert TaskState.Doing not in STATE_AGENT_MAP
+    def test_doing_defaults_to_shangshu(self):
+        """Doing 默认由尚书省协调，可被 ORG_AGENT_MAP 覆盖。"""
+        assert STATE_AGENT_MAP[TaskState.Doing] == "shangshu"
+
+    def test_yulan_maps_to_shangshu(self):
+        """YuLan 御览由尚书省汇总呈报。"""
+        assert STATE_AGENT_MAP[TaskState.YuLan] == "shangshu"
 
 
 class TestOrgAgentMap:

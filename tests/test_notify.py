@@ -1,19 +1,12 @@
-"""tests for dashboard/notify — 通用消息推送系统"""
+"""tests for app.notify — 通用消息推送系统"""
 
 import json
-import pathlib
-import sys
 from unittest.mock import patch, MagicMock
-
-# Add project paths
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "dashboard"))
-sys.path.insert(0, str(ROOT / "scripts"))
 
 
 def test_all_channels_registered():
     """All 10 channels should be auto-discovered and registered."""
-    from notify.registry import all_channels
+    from app.notify.registry import all_channels
 
     channels = all_channels()
     ids = {ch.channel_id for ch in channels}
@@ -26,7 +19,7 @@ def test_all_channels_registered():
 
 def test_channel_meta():
     """Each channel should return valid meta with config_schema."""
-    from notify.registry import all_channels
+    from app.notify.registry import all_channels
 
     for ch in all_channels():
         meta = ch.to_meta()
@@ -39,7 +32,7 @@ def test_channel_meta():
 
 def test_all_channels_reject_empty_config():
     """Every channel should reject empty params."""
-    from notify.registry import all_channels
+    from app.notify.registry import all_channels
 
     for ch in all_channels():
         ok, err = ch.validate_config({})
@@ -49,7 +42,7 @@ def test_all_channels_reject_empty_config():
 
 def test_pushplus_validate():
     """PushPlus validation rules."""
-    from notify.registry import get_channel
+    from app.notify.registry import get_channel
 
     pp = get_channel("pushplus")
     assert pp is not None
@@ -66,7 +59,7 @@ def test_pushplus_validate():
 
 def test_feishu_validate():
     """Feishu validation: only https and feishu/lark domains."""
-    from notify.registry import get_channel
+    from app.notify.registry import get_channel
 
     fs = get_channel("feishu")
     assert fs is not None
@@ -97,7 +90,7 @@ def test_feishu_validate():
 
 
 def test_wecom_bot_validate():
-    from notify.registry import get_channel
+    from app.notify.registry import get_channel
 
     ch = get_channel("wecom_bot")
     ok, _ = ch.validate_config({"webhook_url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"})
@@ -107,7 +100,7 @@ def test_wecom_bot_validate():
 
 
 def test_dingtalk_validate():
-    from notify.registry import get_channel
+    from app.notify.registry import get_channel
 
     ch = get_channel("dingtalk")
     ok, _ = ch.validate_config({"webhook_url": "https://oapi.dingtalk.com/robot/send?access_token=xxx"})
@@ -119,7 +112,7 @@ def test_dingtalk_validate():
 
 
 def test_serverchan_validate():
-    from notify.registry import get_channel
+    from app.notify.registry import get_channel
 
     ch = get_channel("serverchan")
     ok, _ = ch.validate_config({"send_key": "SCTabcdef"})
@@ -129,7 +122,7 @@ def test_serverchan_validate():
 
 
 def test_telegram_validate():
-    from notify.registry import get_channel
+    from app.notify.registry import get_channel
 
     ch = get_channel("telegram")
     ok, _ = ch.validate_config({"bot_token": "123:ABC", "chat_id": "-100123"})
@@ -140,7 +133,7 @@ def test_telegram_validate():
 
 def test_notify_service_save_load(tmp_path):
     """NotifyService can save and load config."""
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     cfg_path = tmp_path / "notify_config.json"
     svc = NotifyService(cfg_path)
@@ -157,7 +150,7 @@ def test_notify_service_save_load(tmp_path):
 
 def test_notify_service_migrate_legacy(tmp_path):
     """Legacy feishu_webhook should be migrated to new format."""
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     cfg_path = tmp_path / "notify_config.json"
     old_path = tmp_path / "morning_brief_config.json"
@@ -173,7 +166,7 @@ def test_notify_service_migrate_legacy(tmp_path):
 
 def test_notify_service_no_double_migrate(tmp_path):
     """If notify_config.json already exists, migration should be skipped."""
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     cfg_path = tmp_path / "notify_config.json"
     cfg_path.write_text(json.dumps({"channels": {"slack": {"enabled": True}}}))
@@ -192,7 +185,7 @@ def test_notify_service_no_double_migrate(tmp_path):
 
 def test_notify_service_get_channels_meta(tmp_path):
     """get_channels_meta returns all channels with merged config."""
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     cfg_path = tmp_path / "notify_config.json"
     cfg_path.write_text(json.dumps({
@@ -224,8 +217,8 @@ def test_notify_service_get_channels_meta(tmp_path):
 
 def test_notify_service_send_all_no_channels(tmp_path):
     """send_all with no enabled channels returns empty results."""
-    from notify.service import NotifyService
-    from notify.message import NotifyMessage
+    from app.notify.service import NotifyService
+    from app.notify.message import NotifyMessage
 
     svc = NotifyService(tmp_path / "notify_config.json")
     msg = NotifyMessage(title="Test", body="Hello")
@@ -235,7 +228,7 @@ def test_notify_service_send_all_no_channels(tmp_path):
 
 def test_notify_service_send_test_unknown_channel(tmp_path):
     """send_test with unknown channel returns error."""
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     svc = NotifyService(tmp_path / "notify_config.json")
     r = svc.send_test("nonexistent", {})
@@ -245,7 +238,7 @@ def test_notify_service_send_test_unknown_channel(tmp_path):
 
 def test_notify_service_send_test_invalid_config(tmp_path):
     """send_test with invalid config returns validation error."""
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     svc = NotifyService(tmp_path / "notify_config.json")
     r = svc.send_test("pushplus", {})
@@ -254,7 +247,7 @@ def test_notify_service_send_test_invalid_config(tmp_path):
 
 
 def test_notify_service_validate_and_normalize_config_preserves_secret(tmp_path):
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     cfg_path = tmp_path / "notify_config.json"
     cfg_path.write_text(json.dumps({
@@ -273,7 +266,7 @@ def test_notify_service_validate_and_normalize_config_preserves_secret(tmp_path)
 
 
 def test_notify_service_validate_and_normalize_rejects_unknown_channel(tmp_path):
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     svc = NotifyService(tmp_path / "notify_config.json")
     try:
@@ -284,7 +277,7 @@ def test_notify_service_validate_and_normalize_rejects_unknown_channel(tmp_path)
 
 
 def test_notify_service_validate_and_normalize_rejects_unknown_field(tmp_path):
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     svc = NotifyService(tmp_path / "notify_config.json")
     try:
@@ -297,7 +290,7 @@ def test_notify_service_validate_and_normalize_rejects_unknown_field(tmp_path):
 
 
 def test_notify_service_validate_and_normalize_rejects_invalid_url(tmp_path):
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     svc = NotifyService(tmp_path / "notify_config.json")
     try:
@@ -309,9 +302,9 @@ def test_notify_service_validate_and_normalize_rejects_invalid_url(tmp_path):
         assert "Slack" in str(e)
 
 
-@patch("notify.channels.pushplus.urlopen")
+@patch("app.notify.channels.pushplus.urlopen")
 def test_notify_service_send_test_preserves_existing_secret(mock_urlopen, tmp_path):
-    from notify.service import NotifyService
+    from app.notify.service import NotifyService
 
     mock_resp = MagicMock()
     mock_resp.read.return_value = json.dumps({"code": 200, "msg": "ok"}).encode()
@@ -326,11 +319,11 @@ def test_notify_service_send_test_preserves_existing_secret(mock_urlopen, tmp_pa
     assert r["ok"] is True
 
 
-@patch("notify.channels.pushplus.urlopen")
+@patch("app.notify.channels.pushplus.urlopen")
 def test_pushplus_send_success(mock_urlopen, tmp_path):
     """PushPlus send succeeds when API returns code 200."""
-    from notify.registry import get_channel
-    from notify.message import NotifyMessage
+    from app.notify.registry import get_channel
+    from app.notify.message import NotifyMessage
 
     mock_resp = MagicMock()
     mock_resp.read.return_value = json.dumps({"code": 200, "msg": "ok"}).encode()
@@ -345,8 +338,8 @@ def test_pushplus_send_success(mock_urlopen, tmp_path):
 
 
 def test_pushplus_html_escapes_content():
-    from notify.registry import get_channel
-    from notify.message import NotifyMessage
+    from app.notify.registry import get_channel
+    from app.notify.message import NotifyMessage
 
     pp = get_channel("pushplus")
     html = pp._to_html(NotifyMessage(
@@ -359,11 +352,11 @@ def test_pushplus_html_escapes_content():
     assert "<b>world</b>" in html
 
 
-@patch("notify.channels.pushplus.urlopen")
+@patch("app.notify.channels.pushplus.urlopen")
 def test_pushplus_send_failure(mock_urlopen):
     """PushPlus send fails when API returns non-200 code."""
-    from notify.registry import get_channel
-    from notify.message import NotifyMessage
+    from app.notify.registry import get_channel
+    from app.notify.message import NotifyMessage
 
     mock_resp = MagicMock()
     mock_resp.read.return_value = json.dumps({"code": 400, "msg": "token invalid"}).encode()
@@ -376,11 +369,11 @@ def test_pushplus_send_failure(mock_urlopen):
     assert "token invalid" in result_msg
 
 
-@patch("notify.channels.feishu.urlopen")
+@patch("app.notify.channels.feishu.urlopen")
 def test_feishu_send_success(mock_urlopen):
     """Feishu send succeeds."""
-    from notify.registry import get_channel
-    from notify.message import NotifyMessage
+    from app.notify.registry import get_channel
+    from app.notify.message import NotifyMessage
 
     mock_resp = MagicMock()
     mock_resp.status = 200
@@ -393,10 +386,10 @@ def test_feishu_send_success(mock_urlopen):
     assert ok
 
 
-@patch("notify.channels.feishu.urlopen")
+@patch("app.notify.channels.feishu.urlopen")
 def test_feishu_send_failure_when_body_reports_error(mock_urlopen):
-    from notify.registry import get_channel
-    from notify.message import NotifyMessage
+    from app.notify.registry import get_channel
+    from app.notify.message import NotifyMessage
 
     mock_resp = MagicMock()
     mock_resp.status = 200
@@ -409,10 +402,10 @@ def test_feishu_send_failure_when_body_reports_error(mock_urlopen):
     assert "bad token" in msg
 
 
-@patch("notify.channels.slack.urlopen")
+@patch("app.notify.channels.slack.urlopen")
 def test_slack_send_failure_on_non_ok_body(mock_urlopen):
-    from notify.registry import get_channel
-    from notify.message import NotifyMessage
+    from app.notify.registry import get_channel
+    from app.notify.message import NotifyMessage
 
     mock_resp = MagicMock()
     mock_resp.status = 200
@@ -427,7 +420,7 @@ def test_slack_send_failure_on_non_ok_body(mock_urlopen):
 
 def test_dingtalk_sign():
     """DingTalk signing generates valid URL with timestamp and sign."""
-    from notify.channels.dingtalk import DingTalkChannel
+    from app.notify.channels.dingtalk import DingTalkChannel
 
     url = DingTalkChannel._sign_url(
         "https://oapi.dingtalk.com/robot/send?access_token=xxx",

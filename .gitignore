@@ -14,6 +14,9 @@ data/mission_control_tasks.json
 *.log
 /tmp/
 
+# Secrets
+.env
+
 # Python
 __pycache__/
 *.py[cod]
@@ -35,3 +38,4 @@ data
 # open-mem: Auto-generated folder context files.
 # Uncomment to exclude from version control (recommended for large projects):
 # **/AGENTS.md
+.ropeproject

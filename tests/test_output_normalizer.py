@@ -1,7 +1,7 @@
 """输出归一化器全面单测。"""
 
 import pytest
-from edict.backend.app.services.output_normalizer import normalize_agent_output
+from app.services.output_normalizer import normalize_agent_output
 
 
 class TestNormalizeAgentOutput:
@@ -29,13 +29,25 @@ class TestNormalizeAgentOutput:
             returncode=1,
             stdout="",
             stderr="rate limit exceeded",
-            attempts=3,
+            attempts=4,
             error_type="rate_limit",
         )
         assert out["ok"] is False
-        assert out["retry"]["attempts"] == 3
+        assert out["retry"]["attempts"] == 4
         assert out["retry"]["error_type"] == "rate_limit"
         assert out["retry"]["exhausted"] is True
+
+    def test_retry_before_limit_not_exhausted(self):
+        out = normalize_agent_output(
+            task_id="JJC-002A",
+            agent="zhongshu",
+            returncode=1,
+            stdout="",
+            stderr="rate limit exceeded",
+            attempts=3,
+            error_type="rate_limit",
+        )
+        assert out["retry"]["exhausted"] is False
 
     def test_artifacts_extraction(self):
         out = normalize_agent_output(
@@ -118,6 +130,18 @@ class TestNormalizeAgentOutput:
             error_type="network",
         )
         assert out["retry"]["exhausted"] is False
+
+    def test_business_error_exhausted_immediately(self):
+        out = normalize_agent_output(
+            task_id="JJC-009A",
+            agent="taizi",
+            returncode=1,
+            stdout="",
+            stderr="invalid model",
+            attempts=1,
+            error_type="business_error",
+        )
+        assert out["retry"]["exhausted"] is True
 
     def test_todo_detail_equals_summary(self):
         out = normalize_agent_output(

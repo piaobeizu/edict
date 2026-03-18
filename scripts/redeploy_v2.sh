@@ -17,7 +17,7 @@ set -euo pipefail
 MODE="${1:-full}"
 
 ROOT_DIR="/root/code/python/agents/edict"
-COMPOSE_FILE="$ROOT_DIR/edict/docker-compose.yml"
+COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
 
 DC=(docker compose --project-directory "$ROOT_DIR" -f "$COMPOSE_FILE")
 
@@ -129,8 +129,6 @@ if not provider_models:
     raise SystemExit(0)
 
 model_id = (os.getenv("OPENAI_MODEL") or "").strip() or provider_models[0].get("id")
-
-# 确保 provider 下存在 model_id
 exists = any((m or {}).get("id") == model_id for m in provider_models)
 if not exists:
     template = dict(provider_models[0])
@@ -141,7 +139,6 @@ if not exists:
     provider["models"] = provider_models
     providers[provider_id] = provider
 
-# OpenAI 兼容端（尤其 GPT-5.x）常要求 max_completion_tokens
 for m in provider_models:
     if not isinstance(m, dict):
         continue
@@ -160,7 +157,6 @@ agents = cfg.setdefault("agents", {})
 defaults = agents.setdefault("defaults", {})
 defaults["model"] = {"primary": default_model}
 
-# 清掉 agent 级 model 覆盖，统一走默认模型（与 v1 行为一致）
 for ag in agents.get("list", []) or []:
     if isinstance(ag, dict) and "model" in ag:
       ag.pop("model", None)
@@ -204,31 +200,26 @@ case "$MODE" in
     echo "==> Full redeploy"
     "${DC[@]}" down
     "${DC[@]}" up -d --build
-    # backend 重建后，重启 frontend，避免 nginx upstream 指向旧容器IP导致 502
     "${DC[@]}" restart frontend
     ensure_openclaw_agents
     configure_openclaw_auth
     normalize_openclaw_model_config
     sync_openclaw_auth_profiles
     ;;
-
   backend)
     echo "==> Backend/worker redeploy"
     "${DC[@]}" up -d --build backend orchestrator dispatcher
-    # 关键步骤：规避 502
     "${DC[@]}" restart frontend
     ensure_openclaw_agents
     configure_openclaw_auth
     normalize_openclaw_model_config
     sync_openclaw_auth_profiles
     ;;
-
   frontend)
     echo "==> Frontend redeploy"
     "${DC[@]}" build --no-cache frontend
     "${DC[@]}" up -d --force-recreate frontend
     ;;
-
   *)
     echo "Unknown mode: $MODE"
     echo "Usage: $0 [full|backend|frontend]"

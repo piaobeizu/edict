@@ -13,19 +13,19 @@
   <a href="#-30-秒快速体验">🚀 30 秒体验</a> ·
   <a href="#-架构">🏛️ 架构</a> ·
   <a href="#-功能全景">📋 看板功能</a> ·
-  <a href="docs/task-dispatch-architecture.md">📚 架构文档</a> ·
+  <a href="docs/architecture/task-dispatch-architecture.md">📚 架构文档</a> ·
   <a href="README_EN.md">English</a> ·
   <a href="CONTRIBUTING.md">参与贡献</a>
 </p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/OpenClaw-Required-blue?style=flat-square" alt="OpenClaw">
-  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Agents-12_Specialized-8B5CF6?style=flat-square" alt="Agents">
   <img src="https://img.shields.io/badge/Dashboard-Real--time-F59E0B?style=flat-square" alt="Dashboard">
   <img src="https://img.shields.io/badge/License-MIT-22C55E?style=flat-square" alt="License">
   <img src="https://img.shields.io/badge/Frontend-React_18-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React">
-  <img src="https://img.shields.io/badge/Backend-stdlib_only-EC4899?style=flat-square" alt="Zero Backend Dependencies">
+  <img src="https://img.shields.io/badge/Backend-FastAPI_%2B_PG_%2B_Redis-EC4899?style=flat-square" alt="Backend: FastAPI + PostgreSQL + Redis">
 </p>
 
 <p align="center">
@@ -37,8 +37,8 @@
 ## 🎬 Demo
 
 <p align="center">
-  <video src="docs/Agent_video_Pippit_20260225121727.mp4" width="100%" autoplay muted loop playsinline controls>
-    您的浏览器不支持视频播放，请查看下方 GIF 或 <a href="docs/Agent_video_Pippit_20260225121727.mp4">下载视频</a>。
+  <video src="docs/media/Agent_video_Pippit_20260225121727.mp4" width="100%" autoplay muted loop playsinline controls>
+    您的浏览器不支持视频播放，请查看下方 GIF 或 <a href="docs/media/Agent_video_Pippit_20260225121727.mp4">下载视频</a>。
   </video>
   <br>
   <sub>🎥 三省六部 AI 多 Agent 协作全流程演示</sub>
@@ -47,13 +47,13 @@
 <details>
 <summary>📸 GIF 预览（加载更快）</summary>
 <p align="center">
-  <img src="docs/demo.gif" alt="三省六部 Demo" width="100%">
+  <img src="docs/media/demo.gif" alt="三省六部 Demo" width="100%">
   <br>
   <sub>飞书下旨 → 太子分拣 → 中书省规划 → 门下省审议 → 六部并行执行 → 奏折回报（30 秒）</sub>
 </p>
 </details>
 
-> 🐳 **没有 OpenClaw？** 跑一行 `docker run -p 7891:7891 cft0808/edict` 即可体验完整看板 Demo（预置模拟数据）。
+> 🐳 **没有 OpenClaw？** 直接运行 `docker compose up -d --build`，然后打开前端 `http://127.0.0.1:8002` 即可体验 v2 看板。
 
 ---
 
@@ -200,40 +200,40 @@ CrewAI 和 AutoGen 的 Agent 协作模式是 **"做完就交"**——没有人�
 ## 🖼️ 截图
 
 ### 旨意看板
-![旨意看板](docs/screenshots/01-kanban-main.png)
+![旨意看板](docs/media/screenshots/01-kanban-main.png)
 
 <details>
 <summary>📸 展开查看更多截图</summary>
 
 ### 省部调度
-![省部调度](docs/screenshots/02-monitor.png)
+![省部调度](docs/media/screenshots/02-monitor.png)
 
 ### 任务流转详情
-![任务流转详情](docs/screenshots/03-task-detail.png)
+![任务流转详情](docs/media/screenshots/03-task-detail.png)
 
 ### 模型配置
-![模型配置](docs/screenshots/04-model-config.png)
+![模型配置](docs/media/screenshots/04-model-config.png)
 
 ### 技能配置
-![技能配置](docs/screenshots/05-skills-config.png)
+![技能配置](docs/media/screenshots/05-skills-config.png)
 
 ### 官员总览
-![官员总览](docs/screenshots/06-official-overview.png)
+![官员总览](docs/media/screenshots/06-official-overview.png)
 
 ### 会话记录
-![会话记录](docs/screenshots/07-sessions.png)
+![会话记录](docs/media/screenshots/07-sessions.png)
 
 ### 奏折归档
-![奏折归档](docs/screenshots/08-memorials.png)
+![奏折归档](docs/media/screenshots/08-memorials.png)
 
 ### 圣旨模板
-![圣旨模板](docs/screenshots/09-templates.png)
+![圣旨模板](docs/media/screenshots/09-templates.png)
 
 ### 天下要闻
-![天下要闻](docs/screenshots/10-morning-briefing.png)
+![天下要闻](docs/media/screenshots/10-morning-briefing.png)
 
 ### 上朝仪式
-![上朝仪式](docs/screenshots/11-ceremony.png)
+![上朝仪式](docs/media/screenshots/11-ceremony.png)
 
 </details>
 
@@ -241,12 +241,12 @@ CrewAI 和 AutoGen 的 Agent 协作模式是 **"做完就交"**——没有人�
 
 ## 🚀 30 秒快速体验
 
-### Docker 一键启动
+### Compose 一键启动（v2）
 
 ```bash
-docker run -p 7891:7891 cft0808/sansheng-demo
+docker compose up -d --build
 ```
-打开 http://localhost:7891 即可体验军机处看板。
+打开 http://127.0.0.1:8002 即可体验军机处看板（后端 API 为 http://127.0.0.1:8001）。
 
 <details>
 <summary><b>⚠️ 遇到 <code>exec format error</code>？（点击展开）</b></summary>
@@ -256,14 +256,14 @@ docker run -p 7891:7891 cft0808/sansheng-demo
 exec /usr/local/bin/python3: exec format error
 ```
 
-这是因为镜像架构不匹配。请使用 `--platform` 参数：
+这是因为镜像架构不匹配。可先设置平台再启动 compose：
 ```bash
-docker run --platform linux/amd64 -p 7891:7891 cft0808/sansheng-demo
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up -d --build
 ```
 
-或使用 docker-compose（已内置 `platform: linux/amd64`）：
+或直接使用默认 compose 启动：
 ```bash
-docker compose up
+docker compose up -d --build
 ```
 
 </details>
@@ -272,7 +272,7 @@ docker compose up
 
 #### 前置条件
 - [OpenClaw](https://openclaw.ai) 已安装
-- Python 3.9+
+- Python 3.11+
 - macOS / Linux
 
 #### 安装
@@ -280,42 +280,32 @@ docker compose up
 ```bash
 git clone https://github.com/cft0808/edict.git
 cd edict
-chmod +x install.sh && ./install.sh
+docker compose up -d --build
 ```
 
-安装脚本自动完成：
-- ✅ 创建全量 Agent Workspace（含太子/吏部/早朝，兼容历史 main）
-- ✅ 写入各省部 SOUL.md（角色人格 + 工作流规则 + 数据清洗规范）
-- ✅ 注册 Agent 及权限矩阵到 `openclaw.json`
-- ✅ 构建 React 前端（需 Node.js 18+，如未安装则跳过）
-- ✅ 初始化数据目录 + 首次数据同步
-- ✅ 重启 Gateway 使配置生效
+Compose 会自动拉起：
+- ✅ FastAPI backend
+- ✅ orchestrator / dispatcher worker
+- ✅ PostgreSQL + Redis
+- ✅ React 前端（Nginx）
 
 #### 启动
 
 > 推荐（v2）：使用 compose 启动前后端与 worker（默认前端 8002，后端 8001）
 >
 > ```bash
-> docker compose -f edict/docker-compose.yml up -d --build
+> docker compose up -d --build
 > open http://127.0.0.1:8002
 > ```
 
-兼容旧看板（dashboard 模式）：
+启动并打开看板：
 
 ```bash
-# 终端 1：数据刷新循环
-bash scripts/run_loop.sh
-
-# 终端 2：看板服务器
-python3 dashboard/server.py
-
-# 打开浏览器
-open http://127.0.0.1:7891
+docker compose up -d --build
+open http://127.0.0.1:8002
 ```
 
-> 💡 **看板即开即用**：`server.py` 内嵌 `dashboard/dashboard.html`，Docker 镜像包含预构建的 React 前端
-
-> 💡 详细教程请看 [Getting Started 指南](docs/getting-started.md)
+> 💡 详细教程请看 [Getting Started 指南](docs/guides/getting-started.md)
 
 ---
 
@@ -399,42 +389,22 @@ open http://127.0.0.1:7891
 
 ```
 edict/
-├── agents/                     # 12 个 Agent 的人格模板
-│   ├── taizi/SOUL.md           # 太子 · 消息分拣（含旨意标题规范）
-│   ├── zhongshu/SOUL.md        # 中书省 · 规划中枢
-│   ├── menxia/SOUL.md          # 门下省 · 审议把关
-│   ├── shangshu/SOUL.md        # 尚书省 · 调度大脑
-│   ├── hubu/SOUL.md            # 户部 · 数据资源
-│   ├── libu/SOUL.md            # 礼部 · 文档规范
-│   ├── bingbu/SOUL.md          # 兵部 · 工程实现
-│   ├── xingbu/SOUL.md          # 刑部 · 合规审计
-│   ├── gongbu/SOUL.md          # 工部 · 基础设施
-│   ├── libu_hr/                # 吏部 · 人事管理
-│   └── zaochao/SOUL.md         # 早朝官 · 情报枢纽
-├── dashboard/
-│   ├── dashboard.html          # 军机处看板（单文件 · 零依赖 · ~2500 行）
-│   ├── dist/                   # React 前端构建产物（Docker 镜像内包含，本地可选）
-│   └── server.py               # API 服务器（Python 标准库 · 零依赖 · ~1200 行）
+├── backend/                    # FastAPI + workers + migration
+├── frontend/                   # React 看板前端
+├── kernel/                     # 工作流内核（可本地 editable 安装）
+├── agents/                     # 12 个 Agent 的 SOUL 配置
 ├── scripts/
-│   ├── run_loop.sh             # 数据刷新循环（每 15 秒）
-│   ├── kanban_update.py        # 看板 CLI（含旨意数据清洗 + 标题校验）
-│   ├── skill_manager.py        # Skill 管理工具（远程/本地 Skills 添加、更新、移除）
-│   ├── sync_from_openclaw_runtime.py
-│   ├── sync_agent_config.py
-│   ├── sync_officials_stats.py
-│   ├── fetch_morning_news.py
-│   ├── refresh_live_data.py
-│   ├── apply_model_changes.py
-│   └── file_lock.py            # 文件锁（防多 Agent 并发写入）
-├── tests/
-│   └── test_e2e_kanban.py      # 端到端测试（17 个断言）
+│   └── redeploy_v2.sh          # v2 重部署脚本
+├── backend/app/runtime_assets/
+│   └── kanban_update.py        # 看板 CLI（runtime 资产）
+├── tests/                      # v2 单元 / 集成测试
 ├── data/                       # 运行时数据（gitignored）
 ├── docs/
-│   ├── task-dispatch-architecture.md  # 📚 详细架构文档：任务分发、流转、调度的完整设计（业务+技术）
-│   ├── getting-started.md             # 快速上手指南
-│   ├── wechat-article.md              # 微信文章
-│   └── screenshots/                   # 功能截图（11 张）
-├── install.sh                  # 一键安装脚本
+│   ├── architecture/            # 架构文档
+│   ├── guides/                  # 使用与操作指南
+│   ├── articles/                # 文章与公众号内容
+│   └── media/                   # 图片、视频与静态资源
+├── AGENTS.md                   # 仓库级执行/验证规则
 ├── CONTRIBUTING.md             # 贡献指南
 └── LICENSE                     # MIT License
 ```
@@ -488,34 +458,15 @@ edict/
 → 确认 → ✅ 完成
 ```
 
-#### 2️⃣ CLI 命令（最灵活）
+#### 2️⃣ CLI 命令（计划中）
 
-```bash
-# 从 GitHub 添加 code_review skill 到中书省
-python3 scripts/skill_manager.py add-remote \
-  --agent zhongshu \
-  --name code_review \
-  --source https://raw.githubusercontent.com/openclaw-ai/skills-hub/main/code_review/SKILL.md \
-  --description "代码审查技能"
-
-# 一键导入官方 skills 库到指定 agents
-python3 scripts/skill_manager.py import-official-hub \
-  --agents zhongshu,menxia,shangshu,bingbu,xingbu
-
-# 列出所有已添加的远程 skills
-python3 scripts/skill_manager.py list-remote
-
-# 更新某个 skill 到最新版本
-python3 scripts/skill_manager.py update-remote \
-  --agent zhongshu \
-  --name code_review
-```
+`scripts/skill_manager.py` 仍在规划中，当前版本**尚未实现**。目前请使用看板 UI 或下方 API 方式管理远程 Skills。
 
 #### 3️⃣ API 请求（自动化集成）
 
 ```bash
 # 添加远程 skill
-curl -X POST http://localhost:7891/api/add-remote-skill \
+curl -X POST http://127.0.0.1:8001/api/add-remote-skill \
   -H "Content-Type: application/json" \
   -d '{
     "agentId": "zhongshu",
@@ -525,7 +476,7 @@ curl -X POST http://localhost:7891/api/add-remote-skill \
   }'
 
 # 查看所有远程 skills
-curl http://localhost:7891/api/remote-skills-list
+curl http://127.0.0.1:8001/api/remote-skills-list
 ```
 
 **官方 Skills Hub：** https://github.com/openclaw-ai/skills-hub
@@ -538,7 +489,7 @@ curl http://localhost:7891/api/remote-skills-list
 - `doc_generation` — 文档生成
 - `test_framework` — 测试框架设计
 
-详见 [🎓 远程 Skills 资源管理指南](docs/remote-skills-guide.md)
+详见 [🎓 远程 Skills 资源管理指南](docs/guides/remote-skills-guide.md)
 
 ---
 
@@ -546,42 +497,26 @@ curl http://localhost:7891/api/remote-skills-list
 
 | 特点 | 说明 |
 |------|------|
-| **React 18 前端** | TypeScript + Vite + Zustand 状态管理，13 个功能组件 |
-| **纯 stdlib 后端** | `server.py` 基于 `http.server`，零依赖，同时提供 API + 静态文件服务 |
+| **React 18 前端** | TypeScript + Vite + Zustand 状态管理，多功能看板面板 |
+| **后端服务** | FastAPI + PostgreSQL + Redis（Compose 一键启动） |
 | **Agent 思考可视** | 实时展示 Agent 的 thinking 过程、工具调用、返回结果 |
-| **一键安装** | `install.sh` 自动完成全部配置 |
-| **15 秒同步** | 数据自动刷新，看板倒计时显示 |
+| **一键启动** | `docker compose up -d --build` |
+| **事件驱动** | PostgreSQL + Redis + Worker 驱动任务流转 |
 | **每日仪式** | 首次打开播放上朝开场动画 |
-| **远程 Skills 生态** | 从 GitHub/URL 一键导入能力，支持版本管理 + CLI + API + UI |
+| **远程 Skills 生态** | 从 GitHub/URL 一键导入能力，支持版本管理 + API + UI（CLI 计划中） |
 
 ---
 
 ## � 深入了解
 
-### 核心文档
+### 推荐阅读顺序
 
-- **[📖 任务分发流转完整架构](docs/task-dispatch-architecture.md)** — **必读文档**
-  - 详细讲解三省六部如何处理复杂任务的业务设计和技术实现
-  - 涵盖：9大任务状态机 / 权限矩阵 / 4阶段调度（重试→升级→回滚）/ Session JSONL数据融合
-  - 包含完整的使用案例、API端点说明、CLI工具文档
-  - 对标 CrewAI/AutoGen：为什么制度化>自由协作
-  - 故障场景与恢复机制
-  - **读这个文档会理解为什么三省六部这么强大**（9500+ 字，30 分钟完整理解）
-
-- **[🎓 远程 Skills 资源管理指南](docs/remote-skills-guide.md)** — Skills 生态
-  - 从网上连接和增补 skills，支持 GitHub/Gitee/任意 HTTPS URL
-  - 官方 Skills Hub 预设能力库
-  - CLI 工具 + 看板 UI + Restful API
-  - Skills 文件规范与安全防护
-  - 支持版本管理和一键更新
-
-- **[⚡ Remote Skills 快速入门](docs/remote-skills-quickstart.md)** — 5 分钟上手
-  - 快速体验、CLI 命令、看板操作示例
-  - 创建自己的 Skills 库
-  - API 完整参考 + 常见问题
-
-- **[🚀 快速上手指南](docs/getting-started.md)** — 新手入门
-- **[🤝 贡献指南](CONTRIBUTING.md)** — 想参与贡献？从这里开始
+1. **[🚀 快速上手指南](docs/guides/getting-started.md)** — 先把服务跑起来
+2. **[🧱 当前代码结构设计说明](docs/architecture/code-structure.md)** — 理解 backend / kernel / frontend 分层
+3. **[📖 任务分发流转完整架构](docs/architecture/task-dispatch-architecture.md)** — 深入理解任务流转与制度设计
+4. **[🎓 远程 Skills 资源管理指南](docs/guides/remote-skills-guide.md)** — 了解 Skills 生态与 API/UI 用法
+5. **[⚡ Remote Skills 快速入门](docs/guides/remote-skills-quickstart.md)** — 快速体验常见操作
+6. **[🤝 贡献指南](CONTRIBUTING.md)** — 准备参与开发时再看
 
 ---
 ## 🔧 常见问题排查
@@ -595,7 +530,7 @@ curl http://localhost:7891/api/remote-skills-list
 
 1. **检查 Agent 注册状态**：
 ```bash
-curl -s http://127.0.0.1:7891/api/agents-status | python3 -m json.tool
+curl -s http://127.0.0.1:8001/api/agents-status | python3 -m json.tool
 ```
 确认 `taizi` agent 的 `statusLabel` 是 `alive`。
 
@@ -606,14 +541,14 @@ grep -i "error\|fail\|unknown" /tmp/openclaw/openclaw-*.log | tail -20
 ```
 
 3. **常见原因**：
-   - Agent ID 不匹配（已在 v1.2 修复：`main` → `taizi`）
+   - Agent ID 不匹配（请核对 `taizi` 是否存在且在线）
    - LLM provider 超时（增加了自动重试）
    - 僵尸 Agent 进程（运行 `ps aux | grep openclaw` 检查）
 
 4. **强制重试**：
 ```bash
 # 手动触发巡检扫描（自动重试卡住的任务）
-curl -X POST http://127.0.0.1:7891/api/scheduler-scan \
+curl -X POST http://127.0.0.1:8001/api/scheduler-scan \
   -H 'Content-Type: application/json' -d '{"thresholdSec":60}'
 ```
 
@@ -628,11 +563,11 @@ curl -X POST http://127.0.0.1:7891/api/scheduler-scan \
 
 **解决**：
 ```bash
-# 方法 1：指定平台
-docker run --platform linux/amd64 -p 7891:7891 cft0808/sansheng-demo
+# 方法 1：指定平台后启动 compose
+DOCKER_DEFAULT_PLATFORM=linux/amd64 docker compose up -d --build
 
-# 方法 2：使用 docker-compose（已内置 platform）
-docker compose up
+# 方法 2：直接使用 v2 compose
+docker compose up -d --build
 ```
 
 </details>
@@ -640,16 +575,15 @@ docker compose up
 <details>
 <summary><b>❌ Skill 下载失败</b></summary>
 
-**症状**：`python3 scripts/skill_manager.py import-official-hub` 报错。
+**症状**：看板添加远程 Skill 或 `POST /api/add-remote-skill` 失败。
 
 **排查**：
 ```bash
 # 测试网络连通性
 curl -I https://raw.githubusercontent.com/openclaw-ai/skills-hub/main/code_review/SKILL.md
 
-# 如果超时，使用代理
+# 如果超时，先配置代理后重试 API / 看板导入
 export https_proxy=http://your-proxy:port
-python3 scripts/skill_manager.py import-official-hub --agents zhongshu
 ```
 
 **常见原因**：
@@ -679,9 +613,9 @@ python3 scripts/skill_manager.py import-official-hub --agents zhongshu
 - [x] 旨意数据清洗（路径/元数据/前缀自动剥离）
 - [x] 重复任务防护 + 已完成任务保护
 - [x] 端到端测试覆盖（17 个断言）
-- [x] React 18 前端重构（TypeScript + Vite + Zustand · 13 组件）
+- [x] React 18 前端重构（TypeScript + Vite + Zustand）
 - [x] Agent 思考过程可视化（实时 thinking / 工具调用 / 返回结果）
-- [x] 前后端一体化部署（server.py 同时提供 API + 静态文件服务）
+- [x] 前后端分层部署（backend + frontend + workers）
 
 ### Phase 2 — 制度深化 🚧
 - [ ] 御批模式（人工审批 + 一键准奏/封驳）
@@ -690,7 +624,8 @@ python3 scripts/skill_manager.py import-official-hub --agents zhongshu
 - [ ] 国史馆（知识库检索 + 引用溯源）
 
 ### Phase 3 — 生态扩展
-- [ ] Docker Compose + Demo 镜像
+- [x] Docker Compose 编排
+- [ ] 预置 Demo 数据镜像
 - [ ] Notion / Linear 适配器
 - [ ] 年度大考（Agent 年度绩效报告）
 - [ ] 移动端适配 + PWA
@@ -739,7 +674,7 @@ python3 scripts/skill_manager.py import-official-hub --agents zhongshu
 > 古有邸报传天下政令，今有公众号聊 AI 架构。
 
 <p align="center">
-  <img src="docs/assets/wechat-qrcode.jpg" width="220" alt="公众号二维码 · cft0808">
+  <img src="docs/media/assets/wechat-qrcode.jpg" width="220" alt="公众号二维码 · cft0808">
   <br><br>
   <b>👆 扫码关注「cft0808」—— 朕的技术邸报</b>
 </p>

@@ -1,7 +1,7 @@
 """Sprint2 合同与状态机回归测试（轻量单测）。"""
 
-from edict.backend.app.models.task import STATE_TRANSITIONS, TaskState
-from edict.backend.app.services.output_normalizer import normalize_agent_output
+from app.models.task import STATE_TRANSITIONS, TaskState
+from app.services.output_normalizer import normalize_agent_output
 
 
 def test_output_contract_contains_sprint2_fields():

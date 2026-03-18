@@ -19,11 +19,11 @@
 
 <p align="center">
   <img src="https://img.shields.io/badge/OpenClaw-Required-blue?style=flat-square" alt="OpenClaw">
-  <img src="https://img.shields.io/badge/Python-3.9+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
+  <img src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" alt="Python">
   <img src="https://img.shields.io/badge/Agents-12_Specialized-8B5CF6?style=flat-square" alt="Agents">
   <img src="https://img.shields.io/badge/Dashboard-Real--time-F59E0B?style=flat-square" alt="Dashboard">
   <img src="https://img.shields.io/badge/License-MIT-22C55E?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Zero_Deps-stdlib_only-EC4899?style=flat-square" alt="Zero Dependencies">
+  <img src="https://img.shields.io/badge/Backend-FastAPI_%2B_PG_%2B_Redis-EC4899?style=flat-square" alt="Backend: FastAPI + PostgreSQL + Redis">
 </p>
 
 <p align="center">
@@ -35,8 +35,8 @@
 ## 🎬 Demo
 
 <p align="center">
-  <video src="docs/Agent_video_Pippit_20260225121727.mp4" width="100%" autoplay muted loop playsinline controls>
-    Your browser does not support video playback. See the GIF below or <a href="docs/Agent_video_Pippit_20260225121727.mp4">download the video</a>.
+  <video src="docs/media/Agent_video_Pippit_20260225121727.mp4" width="100%" autoplay muted loop playsinline controls>
+    Your browser does not support video playback. See the GIF below or <a href="docs/media/Agent_video_Pippit_20260225121727.mp4">download the video</a>.
   </video>
   <br>
   <sub>🎥 Full demo: AI Multi-Agent collaboration with Three Departments & Six Ministries</sub>
@@ -45,13 +45,13 @@
 <details>
 <summary>📸 GIF Preview (loads faster)</summary>
 <p align="center">
-  <img src="docs/demo.gif" alt="Edict Demo" width="100%">
+  <img src="docs/media/demo.gif" alt="Edict Demo" width="100%">
   <br>
   <sub>Issue edict → Crown Prince triage → Planning → Review → Ministries execute → Report back (30s)</sub>
 </p>
 </details>
 
-> 🐳 **No OpenClaw?** Run `docker run -p 7891:7891 cft0808/edict` to try the full dashboard with simulated data.
+> 🐳 **No OpenClaw?** Run `docker compose up -d --build`, then open `http://127.0.0.1:8002` to try the v2 dashboard.
 
 ---
 
@@ -145,40 +145,40 @@ This is why Edict produces reliable results on complex tasks: there's a mandator
 ## 🖼️ Screenshots
 
 ### Edicts Kanban
-![Kanban](docs/screenshots/01-kanban-main.png)
+![Kanban](docs/media/screenshots/01-kanban-main.png)
 
 <details>
 <summary>📸 More screenshots</summary>
 
 ### Agent Monitor
-![Monitor](docs/screenshots/02-monitor.png)
+![Monitor](docs/media/screenshots/02-monitor.png)
 
 ### Task Detail
-![Detail](docs/screenshots/03-task-detail.png)
+![Detail](docs/media/screenshots/03-task-detail.png)
 
 ### Model Config
-![Models](docs/screenshots/04-model-config.png)
+![Models](docs/media/screenshots/04-model-config.png)
 
 ### Skills
-![Skills](docs/screenshots/05-skills-config.png)
+![Skills](docs/media/screenshots/05-skills-config.png)
 
 ### Officials
-![Officials](docs/screenshots/06-official-overview.png)
+![Officials](docs/media/screenshots/06-official-overview.png)
 
 ### Sessions
-![Sessions](docs/screenshots/07-sessions.png)
+![Sessions](docs/media/screenshots/07-sessions.png)
 
 ### Memorials Archive
-![Memorials](docs/screenshots/08-memorials.png)
+![Memorials](docs/media/screenshots/08-memorials.png)
 
 ### Command Templates
-![Templates](docs/screenshots/09-templates.png)
+![Templates](docs/media/screenshots/09-templates.png)
 
 ### Daily Briefing
-![Briefing](docs/screenshots/10-morning-briefing.png)
+![Briefing](docs/media/screenshots/10-morning-briefing.png)
 
 ### Court Ceremony
-![Ceremony](docs/screenshots/11-ceremony.png)
+![Ceremony](docs/media/screenshots/11-ceremony.png)
 
 </details>
 
@@ -186,44 +186,39 @@ This is why Edict produces reliable results on complex tasks: there's a mandator
 
 ## 🚀 Quick Start
 
-### Docker
+### Compose (v2)
 
 ```bash
-docker run -p 7891:7891 cft0808/edict
+docker compose up -d --build
 ```
-Open http://localhost:7891
+Open http://127.0.0.1:8002 (backend API: http://127.0.0.1:8001)
 
 ### Full Install
 
-**Prerequisites:** [OpenClaw](https://openclaw.ai) · Python 3.9+ · macOS/Linux
+**Prerequisites:** [OpenClaw](https://openclaw.ai) · Python 3.11+ · macOS/Linux
 
 ```bash
 git clone https://github.com/cft0808/edict.git
 cd edict
-chmod +x install.sh && ./install.sh
+docker compose up -d --build
 ```
 
-The installer automatically:
-- Creates workspaces for all departments (`~/.openclaw/workspace-*`, including Crown Prince/HR/Briefing)
-- Writes SOUL.md personality files for each department
-- Registers agents + permission matrix in `openclaw.json`
-- Initializes data directory + first sync
-- Restarts Gateway
+Compose will start:
+- FastAPI backend
+- orchestrator / dispatcher workers
+- PostgreSQL + Redis
+- React frontend via Nginx
 
 ### Launch
 
 ```bash
-# Terminal 1: Data sync loop (every 15s)
-bash scripts/run_loop.sh
-
-# Terminal 2: Dashboard server
-python3 dashboard/server.py
-
-# Open browser
-open http://127.0.0.1:7891
+docker compose up -d --build
+open http://127.0.0.1:8002
 ```
 
-> 📖 See [Getting Started Guide](docs/getting-started.md) for detailed walkthrough.
+> 📖 See [Getting Started Guide](docs/guides/getting-started.md) for detailed walkthrough.
+>
+> 🧱 See [Current Code Structure](docs/architecture/code-structure.md) for the `backend / kernel / frontend` layering.
 
 ---
 
@@ -314,18 +309,19 @@ edict/
 │   ├── xingbu/ gongbu/         #   Compliance / Infrastructure
 │   ├── libu_hr/                #   HR Dept
 │   └── zaochao/                #   Morning Briefing
-├── dashboard/
-│   ├── dashboard.html          # Dashboard (single file, zero deps, works out of the box)
-│   ├── dist/                   # Pre-built React frontend (included in Docker image)
-│   └── server.py               # API server (stdlib, zero deps)
-├── scripts/                    # Data sync & automation scripts
-│   ├── kanban_update.py        #   Kanban CLI with data sanitization (~300 lines)
-│   └── ...                     #   fetch_morning_news, sync, screenshots, etc.
-├── tests/                      # E2E tests
-│   └── test_e2e_kanban.py      #   Kanban sanitization tests (17 assertions)
+├── backend/                    # FastAPI services + workers
+├── frontend/                   # React dashboard frontend
+├── kernel/                     # workflow kernel package
+├── scripts/                    # v2 operational scripts
+│   └── redeploy_v2.sh          #   v2 redeploy helper
+├── tests/                      # v2 unit/integration tests
 ├── data/                       # Runtime data (gitignored)
-├── docs/                       # Documentation + screenshots
-├── install.sh                  # One-click installer
+├── docs/                       # Layered documentation and media
+│   ├── architecture/           #   Architecture docs
+│   ├── guides/                 #   How-to guides
+│   ├── articles/               #   Articles and WeChat content
+│   └── media/                  #   Screenshots, video, assets
+├── AGENTS.md                   # Repo-level execution rules
 └── LICENSE                     # MIT
 ```
 
@@ -335,11 +331,11 @@ edict/
 
 | | |
 |---|---|
-| **React 18 Frontend** | TypeScript + Vite + Zustand, 13 components |
-| **stdlib Backend** | `server.py` on `http.server`, zero dependencies |
+| **React 18 Frontend** | TypeScript + Vite + Zustand with multi-panel dashboard |
+| **Backend services** | FastAPI + PostgreSQL + Redis (compose-ready) |
 | **Agent Thinking Visible** | Real-time display of agent thinking, tool calls, results |
-| **One-click Install** | Workspace creation to Gateway restart |
-| **15s Auto-sync** | Live data refresh with countdown |
+| **One-click Start** | `docker compose up -d --build` |
+| **Event-driven Flow** | PostgreSQL + Redis + workers drive task transitions |
 | **Daily Ceremony** | Immersive opening animation |
 
 ---
@@ -371,7 +367,8 @@ edict/
 - [ ] Imperial Archives (knowledge base + citation)
 
 ### Phase 3 — Ecosystem
-- [ ] Docker Compose + demo image
+- [x] Docker Compose orchestration
+- [ ] Pre-seeded demo image
 - [ ] Notion / Linear adapters
 - [ ] Annual review (yearly performance reports)
 - [ ] Mobile responsive + PWA
@@ -417,7 +414,7 @@ Each case includes: Full command → Planning proposal → Review feedback → M
 > *In ancient China, the “Dǐbào” (imperial gazette) delivered edicts across the empire. Today we have a WeChat account.*
 
 <p align="center">
-  <img src="docs/assets/wechat-qrcode.jpg" width="200" alt="WeChat QR · cft0808">
+  <img src="docs/media/assets/wechat-qrcode.jpg" width="200" alt="WeChat QR · cft0808">
   <br>
   <b>Scan to follow · cft0808</b>
 </p>

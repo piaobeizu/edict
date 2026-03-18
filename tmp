@@ -1,0 +1,24 @@
+## 补充材料
+### 1. 本周完成事项
+- 【Edict平台】完成事件总线可靠性重构：修复去重+ACK事件丢失bug、状态转换加行级锁、Stream容量扩容10x
+- 【Edict平台】安全加固：修复路径穿越、SSRF DNS rebinding、CORS、敏感文件过滤、禁用file://协议
+- 【Edict平台】修复Legacy API字段错误、Task ID碰撞、async阻塞IO等27项缺陷
+- 【Edict平台】优化尚书省多阶段职责分离（御览呈报/执行派发/审查验收），dispatch prompt注入前序产出上下文
+- 【前端】Agent执行中禁用准奏/封驳/推进按钮，防止状态竞争；Nginx动态DNS解析，backend重建不再需要手动重启frontend
+- 【基础设施】.env密钥轮换、git敏感文件清理、MEMORY.md及memory/目录自动初始化
+- 【部署运维】全量重部署3次，150项测试全部通过，修复OpenClaw API Key注入链路
+### 2. 本周关键数据
+- 修复缺陷：27项（Critical 3 / High 12 / Medium 8 / Low 4）+ 二轮复查9项
+- 测试覆盖：150 tests passed
+- 安全漏洞修复：6项（SSRF×2、路径穿越×1、CORS×1、文件泄露×1、密钥泄露×1）
+- 部署次数：3次全量部署
+### 3. 下周计划
+- 接入认证中间件（JWT/API Key），完成admin端点权限控制
+- 实现Transactional Outbox模式，彻底解决DB-Event一致性
+- 补充集成级并发测试（真实数据库事务）
+- PushPlus/飞书通知渠道配置与任务完成推送验证
+- 前端Dashboard优化：Agent状态实时刷新、任务流转可视化
+### 4. 风险与阻塞
+- 所有API端点仍无认证保护，生产暴露风险高，需优先处理
+- LLM Provider偶发401，需增加API Key健康检查与自动failover
+- DB写入与事件发布一致性尚未用Outbox模式彻底闭环

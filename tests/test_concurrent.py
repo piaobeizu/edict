@@ -27,7 +27,7 @@ class TestConcurrentDispatchIdempotency:
     @pytest.mark.asyncio
     async def test_concurrent_dispatch_only_one_runs(self):
         """5 concurrent dispatches for same task+agent+round → only 1 executes openclaw."""
-        from edict.backend.app.workers.dispatch_worker import DispatchWorker
+        from app.workers.dispatch_worker import DispatchWorker
 
         worker = DispatchWorker()
         worker.bus = make_mock_bus()
@@ -82,7 +82,7 @@ class TestConcurrentEventDedup:
     @pytest.mark.asyncio
     async def test_event_dedup_concurrent(self):
         """Multiple identical events → mark_event_once returns True only for the first."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -129,8 +129,8 @@ class TestConcurrentStateTransitions:
     @pytest.mark.asyncio
     async def test_concurrent_transitions_only_one_succeeds(self):
         """Two concurrent transitions from same state → at most one succeeds."""
-        from edict.backend.app.services.task_service import TaskService
-        from edict.backend.app.models.task import TaskState
+        from app.services.task_service import TaskService
+        from app.models.task import TaskState
 
         # Create a mock task
         mock_task = MagicMock()
@@ -143,19 +143,28 @@ class TestConcurrentStateTransitions:
 
         mock_db = AsyncMock()
 
-        async def mock_get(model, task_id):
+        def make_mock_result(task_obj):
+            mock_scalars = MagicMock()
+            mock_scalars.first = MagicMock(return_value=task_obj)
+            mock_result = MagicMock()
+            mock_result.scalars = MagicMock(return_value=mock_scalars)
+            return mock_result
+
+        call_count = 0
+
+        async def mock_execute(stmt):
             nonlocal call_count
             call_count += 1
             if call_count == 1:
-                return mock_task
+                return make_mock_result(mock_task)
             # Second call: state already changed
             mock_task2 = MagicMock()
             mock_task2.state = TaskState.Zhongshu  # Already transitioned
             mock_task2.trace_id = "JJC-RACE"
             mock_task2.flow_log = []
-            return mock_task2
+            return make_mock_result(mock_task2)
 
-        mock_db.get = mock_get
+        mock_db.execute = mock_execute
         mock_db.commit = AsyncMock()
 
         mock_bus = make_mock_bus()

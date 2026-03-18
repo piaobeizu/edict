@@ -1,13 +1,7 @@
 """Kernel 单元测试 — 纯逻辑，不需要 DB/Redis/外部依赖。"""
 
-import sys
-import pathlib
 import pytest
 from datetime import datetime, timezone
-
-# 确保 kernel 可导入
-ROOT = pathlib.Path(__file__).resolve().parent.parent
-sys.path.insert(0, str(ROOT / "edict" / "backend"))
 
 from kernel.state_machine import StateMachine, InvalidTransitionError, Transition
 from kernel.task_entity import TaskEntity, FlowEntry, ProgressEntry, TodoItem

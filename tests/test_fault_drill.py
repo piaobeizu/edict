@@ -82,7 +82,7 @@ class TestRedisDisconnectGraceful:
     @pytest.mark.asyncio
     async def test_redis_disconnect_worker_continues(self):
         """When Redis raises ConnectionError during poll, worker logs and continues."""
-        from edict.backend.app.workers.dispatch_worker import DispatchWorker
+        from app.workers.dispatch_worker import DispatchWorker
 
         worker = DispatchWorker()
         worker.bus = make_mock_bus()
@@ -116,7 +116,7 @@ class TestRedisDisconnectGraceful:
     @pytest.mark.asyncio
     async def test_orchestrator_poll_error_recovery(self):
         """Orchestrator poll error → logs and retries."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -150,7 +150,7 @@ class TestDeadLetterOnExhaustedRetries:
     @pytest.mark.asyncio
     async def test_dead_letter_on_exhausted(self):
         """After all retries exhausted → event goes to DLQ."""
-        from edict.backend.app.workers.dispatch_worker import DispatchWorker
+        from app.workers.dispatch_worker import DispatchWorker
 
         worker = DispatchWorker()
         worker.bus = make_mock_bus()
@@ -190,7 +190,7 @@ class TestDeadLetterOnExhaustedRetries:
     @pytest.mark.asyncio
     async def test_success_no_dead_letter(self):
         """Successful dispatch → no DLQ event."""
-        from edict.backend.app.workers.dispatch_worker import DispatchWorker
+        from app.workers.dispatch_worker import DispatchWorker
 
         worker = DispatchWorker()
         worker.bus = make_mock_bus()

@@ -1,6 +1,6 @@
 """Metrics 服务单测。"""
 
-from edict.backend.app.services.metrics import MetricsCollector
+from app.services.metrics import MetricsCollector
 
 
 class TestMetricsCollector:

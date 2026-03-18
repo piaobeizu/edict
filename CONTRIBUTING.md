@@ -1,4 +1,4 @@
-∏# 🤝 参与贡献
+# 🤝 参与贡献
 
 <p align="center">
   <strong>三省六部欢迎各路英雄好汉 ⚔️</strong><br>
@@ -37,7 +37,7 @@ cd edict
 git checkout -b feat/my-awesome-feature
 
 # 4. 开发 & 测试
-python3 dashboard/server.py  # 启动看板验证
+docker compose up -d --build  # 启动 v2 前后端验证
 
 # 5. 提交
 git add .
@@ -53,38 +53,30 @@ git push origin feat/my-awesome-feature
 
 ### 前置条件
 - [OpenClaw](https://openclaw.ai) 已安装
-- Python 3.9+
+- Python 3.11+
 - macOS / Linux
 
 ### 本地启动
 
 ```bash
-# 安装
-./install.sh
+# 启动 v2 前后端 + worker
+docker compose up -d --build
 
-# 启动数据刷新（后台运行）
-bash scripts/run_loop.sh &
-
-# 启动看板服务器
-python3 dashboard/server.py
-
-# 打开浏览器
-open http://127.0.0.1:7891
+# 打开浏览器（前端）
+open http://127.0.0.1:8002
 ```
-
-> 💡 **看板开箱即用**：`server.py` 内嵌 `dashboard/dashboard.html`，Docker 镜像包含预构建 React 前端
 
 ### 项目结构速览
 
 | 目录/文件 | 说明 | 改动频率 |
 |----------|------|--------|
-| `dashboard/dashboard.html` | 看板前端（单文件，零依赖，开箱即用） | 🔥 高 |
-| `dashboard/server.py` | API 服务器（stdlib，~2200 行） | 🔥 高 |
+| `frontend/src/*` | 看板前端（React + TypeScript） | 🔥 高 |
+| `backend/app/*` | 后端 API / 调度逻辑（FastAPI） | 🔥 高 |
+| `kernel/src/*` | 工作流内核（状态机 / 端口 / 适配器） | 🔶 中 |
 | `agents/*/SOUL.md` | 12 个 Agent 人格模板 | 🔶 中 |
-| `scripts/kanban_update.py` | 看板 CLI + 数据清洗（~300 行） | 🔶 中 |
-| `scripts/*.py` | 数据同步 / 自动化脚本 | 🔶 中 |
-| `tests/test_e2e_kanban.py` | E2E 看板测试（17 断言） | 🔶 中 |
-| `install.sh` | 安装脚本 | 🟢 低 |
+| `backend/app/runtime_assets/kanban_update.py` | 看板 CLI + 数据清洗（runtime 资产） | 🔶 中 |
+| `scripts/redeploy_v2.sh` | v2 重部署脚本 | 🟢 中 |
+| `tests/*` | v2 单元 / 集成测试 | 🔶 中 |
 
 ---
 
@@ -152,19 +144,16 @@ docs: 更新 README 截图
 
 ```bash
 # 编译检查
-python3 -m py_compile dashboard/server.py
-python3 -m py_compile scripts/kanban_update.py
+python3 -m py_compile backend/app/api/dashboard.py
+python3 -m py_compile backend/app/runtime_assets/kanban_update.py
 
-# E2E 看板测试（9 场景 17 断言）
-python3 tests/test_e2e_kanban.py
-
-# 验证数据同步
-python3 scripts/refresh_live_data.py
-python3 scripts/sync_agent_config.py
+# 关键测试（按需补充更多）
+python3 -m pytest tests/test_integration.py
+python3 -m pytest tests/test_state_machine.py
 
 # 启动服务器验证 API
-python3 dashboard/server.py &
-curl -s http://localhost:7891/api/live-status | python3 -m json.tool | head -20
+docker compose up -d backend
+curl -s http://localhost:8001/api/live-status | python3 -m json.tool | head -20
 ```
 
 ---

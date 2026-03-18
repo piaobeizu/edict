@@ -1,15 +1,159 @@
-version: '3.8'
+version: "3.9"
+
+# ══════════════════════════════════════════════════════
+# Edict 三省六部 — 事件驱动架构 Docker Compose
+# ══════════════════════════════════════════════════════
 
 services:
-  sansheng-demo:
-    image: cft0808/sansheng-demo:latest
-    platform: linux/amd64
-    ports:
-      - "8891:7891"
+  # ── 基础设施 ──
+
+  postgres:
+    image: postgres:16-alpine
     environment:
-      - DEMO_MODE=true
+      POSTGRES_DB: edict
+      POSTGRES_USER: edict
+      POSTGRES_PASSWORD: edict_dev_2024
+    ports:
+      - "5432:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U edict"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
     restart: unless-stopped
 
-# 启动: docker compose up
-# 如果在 ARM Mac (M1/M2/M3) 上运行，删除 platform 行即可
-# 访问: http://localhost:7891
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6380:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # ── 后端服务 ──
+
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: edict
+      POSTGRES_USER: edict
+      POSTGRES_PASSWORD: edict_dev_2024
+      REDIS_URL: redis://redis:6379/0
+      PORT: 8001
+      DEBUG: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./agents:/app/agents:ro
+      - ./data:/app/data
+      - openclaw_data:/root/.openclaw
+    command: >
+      sh -c "
+        python -m alembic upgrade head &&
+        uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+      "
+    restart: unless-stopped
+
+  # ── Worker 进程 ──
+
+  orchestrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: edict
+      POSTGRES_USER: edict
+      POSTGRES_PASSWORD: edict_dev_2024
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    command: python -m app.workers.orchestrator_worker
+    restart: unless-stopped
+
+  dispatcher:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: edict
+      POSTGRES_USER: edict
+      POSTGRES_PASSWORD: edict_dev_2024
+      REDIS_URL: redis://redis:6379/0
+      OPENCLAW_PROJECT_DIR: /app
+      # LLM credentials（从项目根 .env 注入；至少配置一个）
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      OPENAI_MODEL: ${OPENAI_MODEL:-}
+      OPENAI_PROVIDER_ID: ${OPENAI_PROVIDER_ID:-}
+      # OpenClaw CLI 配置（dispatcher 通过 subprocess 调用 openclaw agent）
+      # 设置你的 LLM API key，例如：
+      # ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      # OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./agents:/app/agents:ro
+      - ./data:/app/data
+      - openclaw_data:/root/.openclaw
+    command: python -m app.workers.dispatch_worker
+    restart: unless-stopped
+
+  # ── 前端（Flutter Web） ──
+
+  frontend:
+    build:
+      context: ./flutter_app
+      dockerfile: Dockerfile
+    ports:
+      - "8002:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+  # ── 旧前端（React，如需切回取消注释） ──
+  # frontend_react:
+  #   build:
+  #     context: ./frontend
+  #     dockerfile: Dockerfile
+  #   ports:
+  #     - "8003:3000"
+  #   environment:
+  #     VITE_API_URL: http://localhost:8001
+  #     VITE_WS_URL: ws://localhost:8001/ws
+  #   depends_on:
+  #     - backend
+  #   restart: unless-stopped
+
+volumes:
+  pg_data:
+  redis_data:
+  openclaw_data:

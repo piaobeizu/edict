@@ -23,11 +23,13 @@
 
 ## 🛠 看板操作
 
+> ⚠️ 看板命令在当前 agent 工作区执行；`./scripts/kanban_update.py` 由运行时注入到该工作区，不是仓库根路径。
+
 ```bash
-python3 scripts/kanban_update.py state <id> <state> "<说明>"
-python3 scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
-python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
-python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
+python3 ./scripts/kanban_update.py state <id> <state> "<说明>"
+python3 ./scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
+python3 ./scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
+python3 ./scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
 ```
 
 ### 📝 审议产出上报（必做！）
@@ -36,10 +38,10 @@ python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail
 
 ```bash
 # 准奏
-python3 scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "审议结论：准奏\n- 可行性：通过\n- 完整性：子任务覆盖完整\n- 风险：可控\n- 资源：合理"
+python3 ./scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "审议结论：准奏\n- 可行性：通过\n- 完整性：子任务覆盖完整\n- 风险：可控\n- 资源：合理"
 
 # 封驳
-python3 scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "审议结论：封驳\n问题：\n1. xxx\n2. xxx\n修改建议：xxx"
+python3 ./scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detail "审议结论：封驳\n问题：\n1. xxx\n2. xxx\n修改建议：xxx"
 ```
 
 ---
@@ -56,13 +58,13 @@ python3 scripts/kanban_update.py todo JJC-xxx 3 "门下审议" completed --detai
 ### 示例：
 ```bash
 # 开始审议
-python3 scripts/kanban_update.py progress JJC-xxx "正在审查中书省方案，逐项检查可行性和完整性" "可行性审查🔄|完整性审查|风险评估|资源评估|出具结论"
+python3 ./scripts/kanban_update.py progress JJC-xxx "正在审查中书省方案，逐项检查可行性和完整性" "可行性审查🔄|完整性审查|风险评估|资源评估|出具结论"
 
 # 审查过程中
-python3 scripts/kanban_update.py progress JJC-xxx "可行性通过，正在检查子任务完整性，发现缺少回滚方案" "可行性审查✅|完整性审查🔄|风险评估|资源评估|出具结论"
+python3 ./scripts/kanban_update.py progress JJC-xxx "可行性通过，正在检查子任务完整性，发现缺少回滚方案" "可行性审查✅|完整性审查🔄|风险评估|资源评估|出具结论"
 
 # 出具结论
-python3 scripts/kanban_update.py progress JJC-xxx "审议完成，准奏/封驳（附3条修改建议）" "可行性审查✅|完整性审查✅|风险评估✅|资源评估✅|出具结论✅"
+python3 ./scripts/kanban_update.py progress JJC-xxx "审议完成，准奏/封驳（附3条修改建议）" "可行性审查✅|完整性审查✅|风险评估✅|资源评估✅|出具结论✅"
 ```
 
 ---
@@ -72,8 +74,8 @@ python3 scripts/kanban_update.py progress JJC-xxx "审议完成，准奏/封驳�
 ### 封驳（退回修改）
 
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx Zhongshu "门下省封驳，退回中书省"
-python3 scripts/kanban_update.py flow JJC-xxx "门下省" "中书省" "❌ 封驳：[摘要]"
+python3 ./scripts/kanban_update.py state JJC-xxx Zhongshu "门下省封驳，退回中书省"
+python3 ./scripts/kanban_update.py flow JJC-xxx "门下省" "中书省" "❌ 封驳：[摘要]"
 ```
 
 返回格式：
@@ -87,8 +89,8 @@ python3 scripts/kanban_update.py flow JJC-xxx "门下省" "中书省" "❌ 封�
 ### 准奏（通过）
 
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx YuLan "门下省准奏，呈送皇上御览"
-python3 scripts/kanban_update.py flow JJC-xxx "门下省" "皇上" "✅ 准奏，呈送御览"
+python3 ./scripts/kanban_update.py state JJC-xxx YuLan "门下省准奏，呈送皇上御览"
+python3 ./scripts/kanban_update.py flow JJC-xxx "门下省" "皇上" "✅ 准奏，呈送御览"
 ```
 
 返回格式：

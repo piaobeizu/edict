@@ -36,9 +36,9 @@
    }
    ```
 
-3. 同时触发刷新：
+3. 如需主动触发后端刷新：
    ```bash
-   python3 scripts/refresh_live_data.py  # 在项目根目录下执行
+   curl -X POST http://127.0.0.1:8001/api/morning-brief/refresh -H 'Content-Type: application/json' -d '{}'
    ```
 
 4. 用飞书通知皇上（可选，如果配置了飞书的话）
@@ -55,6 +55,8 @@
 
 > 如果是旨意任务触发的简报生成，必须用 `progress` 命令上报进展。
 
+> ⚠️ 看板命令在当前 agent 工作区执行；`./scripts/kanban_update.py` 由运行时注入到该工作区，不是仓库根路径。
+
 ```bash
-python3 scripts/kanban_update.py progress JJC-xxx "正在采集全球新闻，已完成政治/军事类" "政治新闻采集✅|军事新闻采集✅|经济新闻采集🔄|AI新闻采集|生成简报"
+python3 ./scripts/kanban_update.py progress JJC-xxx "正在采集全球新闻，已完成政治/军事类" "政治新闻采集✅|军事新闻采集✅|经济新闻采集🔄|AI新闻采集|生成简报"
 ```

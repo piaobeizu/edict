@@ -49,7 +49,7 @@ class TestOrchestratorDispatches:
     @pytest.mark.asyncio
     async def test_dispatches_on_task_created(self):
         """task.created → should publish task.dispatch."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -71,7 +71,7 @@ class TestOrchestratorDispatches:
     @pytest.mark.asyncio
     async def test_rejects_illegal_transition(self):
         """Illegal state transition → publishes escalated event, no dispatch."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -93,7 +93,7 @@ class TestOrchestratorDispatches:
     @pytest.mark.asyncio
     async def test_status_dispatches_next_agent(self):
         """Valid transition to Zhongshu → dispatches zhongshu agent."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -113,7 +113,7 @@ class TestOrchestratorDispatches:
     @pytest.mark.asyncio
     async def test_event_dedup_skips_duplicate(self):
         """Duplicate event_id → _mark_event_once returns False, event skipped."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -139,7 +139,7 @@ class TestOrchestratorStallRecovery:
     @pytest.mark.asyncio
     async def test_stall_recovery_under_threshold(self):
         """stall_count < 3 → re-dispatch with cleared idem keys."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -162,7 +162,7 @@ class TestOrchestratorStallRecovery:
         mock_db.__aenter__ = AsyncMock(return_value=mock_db)
         mock_db.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("edict.backend.app.workers.orchestrator_worker.async_session", return_value=mock_db):
+        with patch("app.workers.orchestrator_worker.async_session", return_value=mock_db):
             event = make_event("task.stalled", "task.stalled", "JJC-005", {
                 "stall_count": 1,
             })
@@ -178,7 +178,7 @@ class TestOrchestratorStallRecovery:
     @pytest.mark.asyncio
     async def test_stall_auto_blocks_at_5(self):
         """stall_count >= 5 → marks task Blocked in DB."""
-        from edict.backend.app.workers.orchestrator_worker import OrchestratorWorker
+        from app.workers.orchestrator_worker import OrchestratorWorker
 
         worker = OrchestratorWorker()
         worker.bus = make_mock_bus()
@@ -193,7 +193,7 @@ class TestOrchestratorStallRecovery:
         mock_db.__aenter__ = AsyncMock(return_value=mock_db)
         mock_db.__aexit__ = AsyncMock(return_value=False)
 
-        with patch("edict.backend.app.workers.orchestrator_worker.async_session", return_value=mock_db):
+        with patch("app.workers.orchestrator_worker.async_session", return_value=mock_db):
             event = make_event("task.stalled", "task.stalled", "JJC-006", {
                 "stall_count": 5,
             })
@@ -212,7 +212,7 @@ class TestDispatchWorkerIdempotency:
     @pytest.mark.asyncio
     async def test_duplicate_dispatch_skipped(self):
         """Second dispatch with same task+agent+round is skipped."""
-        from edict.backend.app.workers.dispatch_worker import DispatchWorker
+        from app.workers.dispatch_worker import DispatchWorker
 
         worker = DispatchWorker()
         worker.bus = make_mock_bus()
@@ -235,7 +235,7 @@ class TestDispatchWorkerIdempotency:
     @pytest.mark.asyncio
     async def test_publishes_dead_letter_on_failure(self):
         """Non-zero returncode → DLQ event published."""
-        from edict.backend.app.workers.dispatch_worker import DispatchWorker
+        from app.workers.dispatch_worker import DispatchWorker
 
         worker = DispatchWorker()
         worker.bus = make_mock_bus()
@@ -274,19 +274,31 @@ class TestDispatchWorkerIdempotency:
 class TestTaskServiceTransition:
     """TaskService 状态流转校验测试。"""
 
+    @staticmethod
+    def _mock_db_for_transition(mock_task):
+        """Create a mock db that supports both .get() and .execute() with scalars().first()."""
+        mock_scalars = MagicMock()
+        mock_scalars.first = MagicMock(return_value=mock_task)
+        mock_result = MagicMock()
+        mock_result.scalars = MagicMock(return_value=mock_scalars)
+        mock_db = AsyncMock()
+        mock_db.execute = AsyncMock(return_value=mock_result)
+        mock_db.get = AsyncMock(return_value=mock_task)
+        mock_db.commit = AsyncMock()
+        return mock_db
+
     @pytest.mark.asyncio
     async def test_rejects_invalid_transition(self):
         """Invalid state transition → raises ValueError."""
-        from edict.backend.app.services.task_service import TaskService
-        from edict.backend.app.models.task import TaskState
+        from app.services.task_service import TaskService
+        from app.models.task import TaskState
 
         mock_task = MagicMock()
         mock_task.state = TaskState.Taizi
         mock_task.trace_id = "JJC-009"
         mock_task.flow_log = []
 
-        mock_db = AsyncMock()
-        mock_db.get = AsyncMock(return_value=mock_task)
+        mock_db = self._mock_db_for_transition(mock_task)
 
         mock_bus = make_mock_bus()
         svc = TaskService(db=mock_db, event_bus=mock_bus)
@@ -297,8 +309,8 @@ class TestTaskServiceTransition:
     @pytest.mark.asyncio
     async def test_allows_valid_transition(self):
         """Valid state transition → succeeds, publishes event."""
-        from edict.backend.app.services.task_service import TaskService
-        from edict.backend.app.models.task import TaskState
+        from app.services.task_service import TaskService
+        from app.models.task import TaskState
 
         mock_task = MagicMock()
         mock_task.state = TaskState.Taizi
@@ -306,9 +318,7 @@ class TestTaskServiceTransition:
         mock_task.flow_log = []
         mock_task.updated_at = None
 
-        mock_db = AsyncMock()
-        mock_db.get = AsyncMock(return_value=mock_task)
-        mock_db.commit = AsyncMock()
+        mock_db = self._mock_db_for_transition(mock_task)
 
         mock_bus = make_mock_bus()
         svc = TaskService(db=mock_db, event_bus=mock_bus)

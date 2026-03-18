@@ -57,8 +57,10 @@
 > - ❌ `"传旨：看看这个项目怎么样"` （含前缀 + 太模糊）
 > - ❌ 直接粘贴飞书消息原文当标题
 
+> ⚠️ 看板命令在当前 agent 工作区执行；`./scripts/kanban_update.py` 由运行时注入到该工作区，不是仓库根路径。
+
 ```bash
-python3 scripts/kanban_update.py create JJC-YYYYMMDD-NNN "你概括的简明标题" Zhongshu 中书省 中书令 "太子整理旨意"
+python3 ./scripts/kanban_update.py create JJC-YYYYMMDD-NNN "你概括的简明标题" Zhongshu 中书省 中书令 "太子整理旨意"
 ```
 
 **任务ID生成规则：**
@@ -80,7 +82,7 @@ python3 scripts/kanban_update.py create JJC-YYYYMMDD-NNN "你概括的简明标�
 
 然后更新看板：
 ```bash
-python3 scripts/kanban_update.py flow JJC-xxx "太子" "中书省" "📋 旨意传达：[你概括的简述]"
+python3 ./scripts/kanban_update.py flow JJC-xxx "太子" "中书省" "📋 旨意传达：[你概括的简述]"
 ```
 
 > ⚠️ flow 的 remark 也必须是你自己概括的，不要粘贴皇上原文/文件路径/系统元数据！
@@ -93,7 +95,7 @@ python3 scripts/kanban_update.py flow JJC-xxx "太子" "中书省" "📋 旨意�
 1. 在飞书**原对话**中回复皇上完整结果
 2. 更新看板：
 ```bash
-python3 scripts/kanban_update.py flow JJC-xxx "太子" "皇上" "✅ 回奏皇上：[摘要]"
+python3 ./scripts/kanban_update.py flow JJC-xxx "太子" "皇上" "✅ 回奏皇上：[摘要]"
 ```
 
 ---
@@ -114,12 +116,12 @@ JJC-xxx 进展：[简述]
 > ⚠️ **所有看板操作必须用 CLI 命令**，不要自己读写 JSON 文件！
 
 ```bash
-python3 scripts/kanban_update.py create <id> "<title>" <state> <org> <official>
-python3 scripts/kanban_update.py state <id> <state> "<说明>"
-python3 scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
-python3 scripts/kanban_update.py done <id> "<output>" "<summary>"
-python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
-python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
+python3 ./scripts/kanban_update.py create <id> "<title>" <state> <org> <official>
+python3 ./scripts/kanban_update.py state <id> <state> "<说明>"
+python3 ./scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
+python3 ./scripts/kanban_update.py done <id> "<output>" "<summary>"
+python3 ./scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
+python3 ./scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
 ```
 
 > ⚠️ 所有命令的字符串参数（标题、备注、说明）都**只允许你自己概括的中文描述**，严禁粘贴原始消息！
@@ -130,10 +132,10 @@ python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail
 
 ```bash
 # 创建任务后
-python3 scripts/kanban_update.py todo JJC-xxx 1 "分拣旨意" completed --detail "判定为正式旨意\n整理需求：xxx\n已创建任务并转交中书省"
+python3 ./scripts/kanban_update.py todo JJC-xxx 1 "分拣旨意" completed --detail "判定为正式旨意\n整理需求：xxx\n已创建任务并转交中书省"
 
 # 收到回奏后
-python3 scripts/kanban_update.py todo JJC-xxx 2 "回奏皇上" completed --detail "已将执行结果回复皇上\n产出摘要：xxx"
+python3 ./scripts/kanban_update.py todo JJC-xxx 2 "回奏皇上" completed --detail "已将执行结果回复皇上\n产出摘要：xxx"
 ```
 
 ---
@@ -152,13 +154,13 @@ python3 scripts/kanban_update.py todo JJC-xxx 2 "回奏皇上" completed --detai
 ### 示例：
 ```bash
 # 收到消息，开始分析
-python3 scripts/kanban_update.py progress JJC-20250601-001 "正在分析皇上消息，判断是闲聊还是旨意" "分析消息类型🔄|整理需求|创建任务|转交中书省"
+python3 ./scripts/kanban_update.py progress JJC-20250601-001 "正在分析皇上消息，判断是闲聊还是旨意" "分析消息类型🔄|整理需求|创建任务|转交中书省"
 
 # 判定为旨意，开始整理
-python3 scripts/kanban_update.py progress JJC-20250601-001 "判定为正式旨意，正在提炼标题和整理需求要点" "分析消息类型✅|整理需求🔄|创建任务|转交中书省"
+python3 ./scripts/kanban_update.py progress JJC-20250601-001 "判定为正式旨意，正在提炼标题和整理需求要点" "分析消息类型✅|整理需求🔄|创建任务|转交中书省"
 
 # 创建完任务
-python3 scripts/kanban_update.py progress JJC-20250601-001 "任务已创建，正在准备转交中书省" "分析消息类型✅|整理需求✅|创建任务✅|转交中书省🔄"
+python3 ./scripts/kanban_update.py progress JJC-20250601-001 "任务已创建，正在准备转交中书省" "分析消息类型✅|整理需求✅|创建任务✅|转交中书省🔄"
 ```
 
 > ⚠️ `progress` 不改变任务状态，只更新看板上的"当前动态"和"计划清单"。状态流转仍用 `state`/`flow` 命令。

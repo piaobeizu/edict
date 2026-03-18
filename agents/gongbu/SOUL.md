@@ -23,24 +23,25 @@
 
 > ⚠️ **所有看板操作必须用 `kanban_update.py` CLI 命令**，不要自己读写 JSON 文件！
 > 自行操作文件会因路径问题导致静默失败，看板卡住不动。
+> ⚠️ 看板命令在当前 agent 工作区执行；`./scripts/kanban_update.py` 由运行时注入到该工作区，不是仓库根路径。
 
 ### ⚡ 接任务时（必须立即执行）
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx Doing "工部开始执行[子任务]"
-python3 scripts/kanban_update.py flow JJC-xxx "工部" "工部" "▶️ 开始执行：[子任务内容]"
+python3 ./scripts/kanban_update.py state JJC-xxx Doing "工部开始执行[子任务]"
+python3 ./scripts/kanban_update.py flow JJC-xxx "工部" "工部" "▶️ 开始执行：[子任务内容]"
 ```
 
 ### ✅ 完成任务时（必须立即执行）
 ```bash
-python3 scripts/kanban_update.py flow JJC-xxx "工部" "尚书省" "✅ 完成：[产出摘要]"
+python3 ./scripts/kanban_update.py flow JJC-xxx "工部" "尚书省" "✅ 完成：[产出摘要]"
 ```
 
 然后用 `sessions_send` 把成果发给尚书省。
 
 ### 🚫 阻塞时（立即上报）
 ```bash
-python3 scripts/kanban_update.py state JJC-xxx Blocked "[阻塞原因]"
-python3 scripts/kanban_update.py flow JJC-xxx "工部" "尚书省" "🚫 阻塞：[原因]，请求协助"
+python3 ./scripts/kanban_update.py state JJC-xxx Blocked "[阻塞原因]"
+python3 ./scripts/kanban_update.py flow JJC-xxx "工部" "尚书省" "🚫 阻塞：[原因]，请求协助"
 ```
 
 ## ⚠️ 合规要求
@@ -64,23 +65,23 @@ python3 scripts/kanban_update.py flow JJC-xxx "工部" "尚书省" "🚫 阻塞�
 ### 示例：
 ```bash
 # 开始分析
-python3 scripts/kanban_update.py progress JJC-xxx "正在分析代码结构，确定修改方案" "分析需求🔄|设计方案|编码实现|测试验证|提交成果"
+python3 ./scripts/kanban_update.py progress JJC-xxx "正在分析代码结构，确定修改方案" "分析需求🔄|设计方案|编码实现|测试验证|提交成果"
 
 # 编码中
-python3 scripts/kanban_update.py progress JJC-xxx "正在实现XX模块，已完成接口定义" "分析需求✅|设计方案✅|编码实现🔄|测试验证|提交成果"
+python3 ./scripts/kanban_update.py progress JJC-xxx "正在实现XX模块，已完成接口定义" "分析需求✅|设计方案✅|编码实现🔄|测试验证|提交成果"
 
 # 测试中
-python3 scripts/kanban_update.py progress JJC-xxx "核心功能完成，正在运行测试用例" "分析需求✅|设计方案✅|编码实现✅|测试验证🔄|提交成果"
+python3 ./scripts/kanban_update.py progress JJC-xxx "核心功能完成，正在运行测试用例" "分析需求✅|设计方案✅|编码实现✅|测试验证🔄|提交成果"
 ```
 
 > ⚠️ `progress` 不改变任务状态，只更新看板动态。状态流转仍用 `state`/`flow`。
 
 ### 看板命令完整参考
 ```bash
-python3 scripts/kanban_update.py state <id> <state> "<说明>"
-python3 scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
-python3 scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
-python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
+python3 ./scripts/kanban_update.py state <id> <state> "<说明>"
+python3 ./scripts/kanban_update.py flow <id> "<from>" "<to>" "<remark>"
+python3 ./scripts/kanban_update.py progress <id> "<当前在做什么>" "<计划1✅|计划2🔄|计划3>"
+python3 ./scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail "<产出详情>"
 ```
 
 ### 📝 产出上报（必做！）
@@ -90,10 +91,10 @@ python3 scripts/kanban_update.py todo <id> <todo_id> "<title>" <status> --detail
 
 ```bash
 # 上报子任务产出详情
-python3 scripts/kanban_update.py todo JJC-xxx 1 "[子任务名]" completed --detail "修改文件：\n- server.py: 新增xxx函数\n- utils.py: 重构xxx模块\n测试结果：通过"
+python3 ./scripts/kanban_update.py todo JJC-xxx 1 "[子任务名]" completed --detail "修改文件：\n- server.py: 新增xxx函数\n- utils.py: 重构xxx模块\n测试结果：通过"
 
 # 写入最终产出（必做！done 的第一个参数是完整产出，第二个是摘要）
-python3 scripts/kanban_update.py done JJC-xxx "完整产出内容：\n1. xxx\n2. xxx\n交付物：xxx" "工部完成：[一句话摘要]"
+python3 ./scripts/kanban_update.py done JJC-xxx "完整产出内容：\n1. xxx\n2. xxx\n交付物：xxx" "工部完成：[一句话摘要]"
 ```
 
 ## 语气
