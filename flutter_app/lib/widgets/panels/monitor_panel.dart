@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/core.dart';
+import '../../core/workflow_entry.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
+import '../common/toast_overlay.dart';
 import '../common/state_tag.dart';
 
 class MonitorPanel extends ConsumerStatefulWidget {
@@ -117,7 +119,29 @@ class _MonitorPanelState extends ConsumerState<MonitorPanel> {
               officials: officialsData.officials,
               tasks: liveStatus?.tasks ?? const <Task>[],
               onOpenTask: (taskId) {
-                ref.read(modalTaskIdProvider.notifier).state = taskId;
+                Task? task;
+                for (final item in (liveStatus?.tasks ?? const <Task>[])) {
+                  if (item.id == taskId) {
+                    task = item;
+                    break;
+                  }
+                }
+                if (task == null) {
+                  ref.read(toastProvider.notifier).show(
+                        '未找到任务，请刷新后重试',
+                        type: ToastType.err,
+                      );
+                  return;
+                }
+                final route = resolveTaskEntryRoute(task);
+                if (route.unresolved) {
+                  ref.read(toastProvider.notifier).show(
+                        'workflow 数据待同步，请稍后重试',
+                        type: ToastType.err,
+                      );
+                  return;
+                }
+                ref.read(modalWorkflowIdProvider.notifier).state = route.workflowId;
               },
             )
           else

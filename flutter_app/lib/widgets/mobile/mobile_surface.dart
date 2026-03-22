@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
+import 'mobile_tokens.dart';
 
 /// Shared immersive background for mobile pages.
 class MobileImmersiveBackground extends StatelessWidget {
   const MobileImmersiveBackground({
     super.key,
     required this.child,
-    this.backgroundColor = const Color(0xFFFAFAF9),
+    this.backgroundColor = MobileUiTokens.pageBg,
   });
 
   final Widget child;
   final Color backgroundColor;
 
-  static const EdgeInsets pagePadding = EdgeInsets.fromLTRB(16, 8, 16, 96);
-  static const BoxShadow cardShadow = BoxShadow(
-    color: Color(0x12000000),
-    blurRadius: 12,
-    offset: Offset(0, 4),
-  );
+  static const EdgeInsets pagePadding = MobileUiTokens.pagePadding;
+  static const BoxShadow cardShadow = MobileUiTokens.cardShadow;
 
   @override
   Widget build(BuildContext context) {

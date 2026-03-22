@@ -5,6 +5,7 @@ import '../../core/constants.dart';
 import '../../core/utils.dart';
 import '../../models/models.dart';
 import '../../providers/live_status_provider.dart';
+import 'mobile_tokens.dart';
 import 'mobile_ui_kit.dart';
 import 'mobile_surface.dart';
 
@@ -18,6 +19,8 @@ class MobileHomeScreen extends ConsumerWidget {
     this.onCreateTaskTap,
     this.onViewTemplatesTap,
     this.onMorningNewsTap,
+    this.onViewNeedsAttentionTap,
+    this.onViewRecentResultsTap,
   });
 
   final ValueChanged<String>? onStatusTap;
@@ -27,6 +30,8 @@ class MobileHomeScreen extends ConsumerWidget {
   final VoidCallback? onCreateTaskTap;
   final VoidCallback? onViewTemplatesTap;
   final VoidCallback? onMorningNewsTap;
+  final VoidCallback? onViewNeedsAttentionTap;
+  final VoidCallback? onViewRecentResultsTap;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -51,17 +56,15 @@ class MobileHomeScreen extends ConsumerWidget {
           _safeParseDate(b.updatedAt).compareTo(_safeParseDate(a.updatedAt)));
 
     return MobileImmersiveBackground(
-      backgroundColor: _HomePalette.pageBg,
-      child: SafeArea(
-        bottom: false,
-        child: liveStatusAsync.when(
+      backgroundColor: MobileUiTokens.pageBg,
+      child: liveStatusAsync.when(
           loading: () => const Center(
             child: CircularProgressIndicator(strokeWidth: 2.4),
           ),
           error: (error, _) => _HomeErrorState(error: error.toString()),
           data: (_) => SingleChildScrollView(
             physics: const BouncingScrollPhysics(),
-            padding: MobileImmersiveBackground.pagePadding,
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -79,21 +82,28 @@ class MobileHomeScreen extends ConsumerWidget {
                   doneCount: doneCount,
                   onTap: onStatusTap,
                 ),
+                const SizedBox(height: 16),
+                _QuickEntryRow(
+                  onCreateTaskTap: onCreateTaskTap,
+                  onViewTemplatesTap: onViewTemplatesTap,
+                  onMorningNewsTap: onMorningNewsTap,
+                ),
                 const SizedBox(height: 22),
                 _NeedsAttentionSection(
                   tasks: needsAttention,
                   onTaskTap: onTaskTap,
+                  onViewAllTap: onViewNeedsAttentionTap,
                 ),
                 const SizedBox(height: 24),
                 _RecentResultsSection(
                   tasks: recentResults.take(5).toList(growable: false),
                   onTaskTap: onTaskTap,
+                  onViewAllTap: onViewRecentResultsTap,
                 ),
               ],
             ),
           ),
         ),
-      ),
     );
   }
 }
@@ -123,18 +133,18 @@ class _GreetingHeader extends StatelessWidget {
               Text(
                 greeting,
                 style: const TextStyle(
-                  color: _HomePalette.heading,
-                  fontSize: 30,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.6,
-                  height: 1.12,
+                  color: MobileUiTokens.heading,
+                  fontSize: 26,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: 0.5,
+                  height: 1.15,
                 ),
               ),
               const SizedBox(height: 6),
               Text(
                 subtitle,
                 style: const TextStyle(
-                  color: _HomePalette.muted,
+                  color: MobileUiTokens.muted,
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
@@ -205,28 +215,124 @@ class _StatusSummaryRow extends StatelessWidget {
   }
 }
 
+class _QuickEntryRow extends StatelessWidget {
+  const _QuickEntryRow({
+    this.onCreateTaskTap,
+    this.onViewTemplatesTap,
+    this.onMorningNewsTap,
+  });
+
+  final VoidCallback? onCreateTaskTap;
+  final VoidCallback? onViewTemplatesTap;
+  final VoidCallback? onMorningNewsTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _QuickEntryCard(
+            icon: Icons.add_task_rounded,
+            label: '新建旨意',
+            onTap: onCreateTaskTap,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickEntryCard(
+            icon: Icons.grid_view_rounded,
+            label: '查看旨库',
+            onTap: onViewTemplatesTap,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _QuickEntryCard(
+            icon: Icons.feed_outlined,
+            label: '晨览要闻',
+            onTap: onMorningNewsTap,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _QuickEntryCard extends StatelessWidget {
+  const _QuickEntryCard({
+    required this.icon,
+    required this.label,
+    this.onTap,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(14),
+      child: Ink(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: MobileUiTokens.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: MobileUiTokens.border),
+          boxShadow: const [MobileImmersiveBackground.cardShadow],
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 18, color: MobileUiTokens.primary),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: MobileUiTokens.body,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 class _NeedsAttentionSection extends StatelessWidget {
   const _NeedsAttentionSection({
     required this.tasks,
     this.onTaskTap,
+    this.onViewAllTap,
   });
 
   final List<Task> tasks;
   final ValueChanged<String>? onTaskTap;
+  final VoidCallback? onViewAllTap;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const MobileSectionTitle(
+        MobileSectionTitle(
           title: '⚠️ 需要关注',
-          trailing: Text(
-            '查看全部',
-            style: TextStyle(
-              color: Color(0xFF78716C),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          trailing: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onViewAllTap,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Text(
+                '查看全部',
+                style: TextStyle(
+                  color: Color(0xFF78716C),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ),
@@ -251,24 +357,36 @@ class _NeedsAttentionSection extends StatelessWidget {
 }
 
 class _RecentResultsSection extends StatelessWidget {
-  const _RecentResultsSection({required this.tasks, this.onTaskTap});
+  const _RecentResultsSection({
+    required this.tasks,
+    this.onTaskTap,
+    this.onViewAllTap,
+  });
 
   final List<Task> tasks;
   final ValueChanged<String>? onTaskTap;
+  final VoidCallback? onViewAllTap;
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const MobileSectionTitle(
+        MobileSectionTitle(
           title: '✅ 最新结果',
-          trailing: Text(
-            '横向滑动',
-            style: TextStyle(
-              color: Color(0xFF78716C),
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+          trailing: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onViewAllTap,
+            child: const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+              child: Text(
+                '查看全部',
+                style: TextStyle(
+                  color: Color(0xFF78716C),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ),
           ),
         ),
@@ -278,14 +396,14 @@ class _RecentResultsSection extends StatelessWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
             decoration: BoxDecoration(
-              color: _HomePalette.surface,
+              color: MobileUiTokens.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: _HomePalette.border),
+              border: Border.all(color: MobileUiTokens.border),
             ),
             child: const Text(
               '暂无最新完成任务',
               style: TextStyle(
-                color: _HomePalette.muted,
+                color: MobileUiTokens.muted,
                 fontSize: 13,
                 fontWeight: FontWeight.w500,
               ),
@@ -339,7 +457,7 @@ class _ResultCard extends StatelessWidget {
               Color(0xFFEFF8F6),
             ],
           ),
-          border: Border.all(color: _HomePalette.border),
+          border: Border.all(color: MobileUiTokens.border),
           boxShadow: const [MobileImmersiveBackground.cardShadow],
         ),
         child: Column(
@@ -350,7 +468,7 @@ class _ResultCard extends StatelessWidget {
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: _HomePalette.heading,
+                color: MobileUiTokens.heading,
                 fontSize: 14,
                 fontWeight: FontWeight.w700,
                 height: 1.3,
@@ -360,7 +478,7 @@ class _ResultCard extends StatelessWidget {
             Text(
               '完成于 ${timeAgo(task.updatedAt)}',
               style: const TextStyle(
-                color: _HomePalette.muted,
+                color: MobileUiTokens.muted,
                 fontSize: 12,
                 fontWeight: FontWeight.w500,
               ),
@@ -371,7 +489,7 @@ class _ResultCard extends StatelessWidget {
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(
-                color: _HomePalette.body,
+                color: MobileUiTokens.body,
                 fontSize: 12,
                 height: 1.45,
               ),
@@ -397,9 +515,9 @@ class _AttentionCard extends StatelessWidget {
       borderRadius: BorderRadius.circular(16),
       child: Container(
         decoration: BoxDecoration(
-          color: _HomePalette.surface,
+          color: MobileUiTokens.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: _HomePalette.border),
+          border: Border.all(color: MobileUiTokens.border),
           boxShadow: const [MobileImmersiveBackground.cardShadow],
         ),
         child: Row(
@@ -426,7 +544,7 @@ class _AttentionCard extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
-                        color: _HomePalette.heading,
+                        color: MobileUiTokens.heading,
                         fontSize: 14,
                         fontWeight: FontWeight.w700,
                         height: 1.3,
@@ -446,7 +564,7 @@ class _AttentionCard extends StatelessWidget {
                             timeAgo(task.updatedAt),
                             textAlign: TextAlign.right,
                             style: const TextStyle(
-                              color: _HomePalette.muted,
+                              color: MobileUiTokens.muted,
                               fontSize: 12,
                               fontWeight: FontWeight.w500,
                             ),
@@ -458,7 +576,7 @@ class _AttentionCard extends StatelessWidget {
                     Text(
                       '${_agentEmoji(task)} ${task.org.isEmpty ? '部门未知' : task.org}',
                       style: const TextStyle(
-                        color: _HomePalette.muted,
+                        color: MobileUiTokens.muted,
                         fontSize: 12,
                         fontWeight: FontWeight.w500,
                       ),
@@ -531,14 +649,15 @@ class _IconButtonShell extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(12),
         child: Ink(
-          width: 40,
-          height: 40,
+          width: 38,
+          height: 38,
           decoration: BoxDecoration(
-            color: _HomePalette.surface,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _HomePalette.border),
+            color: MobileUiTokens.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: MobileUiTokens.border),
+            boxShadow: const [MobileImmersiveBackground.cardShadow],
           ),
-          child: Icon(icon, color: _HomePalette.heading, size: 20),
+          child: Icon(icon, color: MobileUiTokens.heading, size: 20),
         ),
       ),
     );
@@ -554,14 +673,14 @@ class _EmptyAttentionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
       decoration: BoxDecoration(
-        color: _HomePalette.surface,
+        color: MobileUiTokens.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: _HomePalette.border),
+        border: Border.all(color: MobileUiTokens.border),
       ),
       child: const Text(
         '一切顺利 ✨',
         style: TextStyle(
-          color: _HomePalette.muted,
+          color: MobileUiTokens.muted,
           fontSize: 14,
           fontWeight: FontWeight.w600,
         ),
@@ -583,14 +702,14 @@ class _HomeErrorState extends StatelessWidget {
         child: Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: _HomePalette.surface,
+            color: MobileUiTokens.surface,
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: _HomePalette.border),
+            border: Border.all(color: MobileUiTokens.border),
           ),
           child: Text(
             '加载失败：$error',
             style: const TextStyle(
-              color: _HomePalette.muted,
+              color: MobileUiTokens.muted,
               fontSize: 13,
               fontWeight: FontWeight.w500,
             ),
@@ -608,15 +727,6 @@ class _StatusChipData {
   final int count;
   final Color bg;
   final Color accent;
-}
-
-class _HomePalette {
-  static const pageBg = Color(0xFFFAFAF9);
-  static const surface = Color(0xFFFFFFFF);
-  static const heading = Color(0xFF1C1917);
-  static const body = Color(0xFF292524);
-  static const muted = Color(0xFF78716C);
-  static const border = Color(0xFFF0EEEB);
 }
 
 String _greetingForHour(int hour) {

@@ -16,12 +16,85 @@ from ..services.event_bus import get_event_bus, TOPIC_TASK_ESCALATED
 from ..services.morning_brief import DEFAULT_SUB_CONFIG, load_by_date, load_config, load_latest, refresh as refresh_morning_payload, save_config as save_morning_payload
 from ..services.officials_stats import build_officials_stats
 from ..services.task_service import TaskService
+from ..services.workflow_service import WorkflowService
+from ..services.workflow_guards import (
+    TOPIC_WORKFLOW_COMMAND,
+    EVENT_APPROVE_PLAN,
+    EVENT_CANCEL_WORKFLOW,
+    EVENT_REJECT_PLAN,
+    EVENT_RESUME_WORKFLOW,
+    EVENT_START_PLANNING,
+    EVENT_STOP_WORKFLOW,
+    EVENT_SUBMIT_PLAN,
+)
 
 router = APIRouter()
 
 async def _svc(db: AsyncSession) -> TaskService:
     bus = await get_event_bus()
     return TaskService(db, bus)
+
+
+def _is_workflow_task(task: Task) -> bool:
+    return str(getattr(task, "workflow_type", "legacy") or "legacy") != "legacy"
+
+
+async def _publish_workflow_command(task: Task, *, event_type: str, producer: str, payload: dict | None = None):
+    bus = await get_event_bus()
+    workflow_id = str(getattr(task, "workflow_id", "") or "")
+    if not workflow_id:
+        raise ValueError("workflow task missing workflow_id")
+    await bus.publish(
+        topic=TOPIC_WORKFLOW_COMMAND,
+        trace_id=workflow_id,
+        event_type=event_type,
+        producer=producer,
+        payload={"workflow_id": workflow_id, "workflow_version": 2, **(payload or {})},
+    )
+
+
+async def _handle_workflow_task_action(task: Task, action: str, reason: str) -> dict:
+    if action == "stop":
+        await _publish_workflow_command(task, event_type=EVENT_STOP_WORKFLOW, producer="compat", payload={"reason": reason})
+        return {"ok": True, "message": "已提交 workflow 叫停指令"}
+    if action == "cancel":
+        await _publish_workflow_command(task, event_type=EVENT_CANCEL_WORKFLOW, producer="compat", payload={"reason": reason})
+        return {"ok": True, "message": "已提交 workflow 取消指令"}
+    if action == "resume":
+        await _publish_workflow_command(task, event_type=EVENT_RESUME_WORKFLOW, producer="compat", payload={"reason": reason})
+        return {"ok": True, "message": "已提交 workflow 恢复指令"}
+    return {"ok": False, "error": f"workflow 任务暂不支持 action: {action}"}
+
+
+async def _handle_workflow_review_action(task: Task, action: str, comment: str) -> dict:
+    current = str(getattr(task, "state", "") or "")
+    if action == "approve" and current in {"Pending", "Taizi", "draft"}:
+        await _publish_workflow_command(task, event_type=EVENT_START_PLANNING, producer="compat", payload={"content": comment})
+        return {"ok": True, "message": "已提交 workflow 开始规划指令"}
+    if action == "approve" and current in {"Zhongshu", "planning"}:
+        await _publish_workflow_command(task, event_type=EVENT_SUBMIT_PLAN, producer="compat", payload={"comment": comment})
+        return {"ok": True, "message": "已提交 workflow 提交审议指令"}
+    if action == "approve" and current in {"YuLan", "awaiting_plan_review"}:
+        await _publish_workflow_command(task, event_type=EVENT_APPROVE_PLAN, producer="compat", payload={"comment": comment})
+        return {"ok": True, "message": "已提交 workflow 方案批准指令"}
+    if action == "reject" and current in {"YuLan", "awaiting_plan_review"}:
+        await _publish_workflow_command(task, event_type=EVENT_REJECT_PLAN, producer="compat", payload={"comment": comment})
+        return {"ok": True, "message": "已提交 workflow 方案驳回指令"}
+    return {"ok": False, "error": f"workflow 任务当前状态不支持 {action}: {current}"}
+
+
+async def _handle_workflow_advance(task: Task, comment: str) -> dict:
+    current = str(getattr(task, "state", "") or "")
+    if current in {"Pending", "Taizi", "draft"}:
+        await _publish_workflow_command(task, event_type=EVENT_START_PLANNING, producer="compat", payload={"content": comment})
+        return {"ok": True, "message": "已提交 workflow 开始规划指令"}
+    if current in {"planning", "Zhongshu"}:
+        await _publish_workflow_command(task, event_type=EVENT_SUBMIT_PLAN, producer="compat", payload={"comment": comment})
+        return {"ok": True, "message": "已提交 workflow 提交审议指令"}
+    if current in {"YuLan", "awaiting_plan_review"}:
+        await _publish_workflow_command(task, event_type=EVENT_APPROVE_PLAN, producer="compat", payload={"comment": comment})
+        return {"ok": True, "message": "已提交 workflow 方案批准指令"}
+    return {"ok": False, "error": f"workflow 任务当前状态不可推进: {current}"}
 
 
 class CreateTaskBody(BaseModel):
@@ -64,18 +137,27 @@ class SchedulerBody(BaseModel):
 
 @router.post("/create-task")
 async def create_task_compat(body: CreateTaskBody, db: AsyncSession = Depends(get_db)):
-    svc = await _svc(db)
-    task = await svc.create_task(
+    workflow_svc = WorkflowService(db)
+    workflow = await workflow_svc.create_workflow(
         title=body.title,
-        priority=body.priority or "中",
-        assignee_org=body.org or "太子",
+        goal="",
+        workflow_type="generic",
+        owner=body.org or "taizi",
         meta={
+            "created_via": "compat.create-task",
+            "priority": body.priority or "中",
             "template_id": body.templateId or "",
             "template_params": body.params or {},
             "target_dept": body.targetDept or "",
         },
     )
-    return {"ok": True, "taskId": str(task.id), "traceId": str(task.id)}
+    return {
+        "ok": True,
+        "taskId": str(workflow.task_id),
+        "workflowId": str(workflow.id),
+        "traceId": str(workflow.task_id),
+        "state": str(workflow.state),
+    }
 
 
 @router.get("/officials-stats")
@@ -92,6 +174,11 @@ async def officials_stats_compat(db: AsyncSession = Depends(get_db)):
 async def task_action(body: TaskActionBody, db: AsyncSession = Depends(get_db)):
     svc = await _svc(db)
     task = await svc.get_task(body.taskId)
+    if _is_workflow_task(task):
+        try:
+            return await _handle_workflow_task_action(task, body.action, body.reason)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
     cur = TaskState(str(cast(Any, task).state))
 
     try:
@@ -122,6 +209,11 @@ async def task_action(body: TaskActionBody, db: AsyncSession = Depends(get_db)):
 async def review_action(body: ReviewActionBody, db: AsyncSession = Depends(get_db)):
     svc = await _svc(db)
     task = await svc.get_task(body.taskId)
+    if _is_workflow_task(task):
+        try:
+            return await _handle_workflow_review_action(task, body.action, body.comment)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
     cur = task.state if isinstance(task.state, TaskState) else TaskState(task.state)
 
     approve_map = {
@@ -150,6 +242,11 @@ async def review_action(body: ReviewActionBody, db: AsyncSession = Depends(get_d
 async def advance_state(body: AdvanceBody, db: AsyncSession = Depends(get_db)):
     svc = await _svc(db)
     task = await svc.get_task(body.taskId)
+    if _is_workflow_task(task):
+        try:
+            return await _handle_workflow_advance(task, body.comment)
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
     cur = task.state if isinstance(task.state, TaskState) else TaskState(task.state)
 
     next_map = {
@@ -209,6 +306,8 @@ async def scheduler_retry(body: SchedulerBody, db: AsyncSession = Depends(get_db
         return {"ok": False, "error": "缺少 taskId"}
     svc = await _svc(db)
     task = await svc.get_task(body.taskId)
+    if _is_workflow_task(task):
+        return {"ok": False, "error": "workflow 任务暂不支持 scheduler-retry，请通过 workflow command/decision"}
     st = TaskState(str(cast(Any, task).state))
     agent = STATE_AGENT_MAP.get(st)
     if st == TaskState.Assigned:
@@ -223,6 +322,9 @@ async def scheduler_retry(body: SchedulerBody, db: AsyncSession = Depends(get_db
 async def scheduler_escalate(body: SchedulerBody, db: AsyncSession = Depends(get_db)):
     if not body.taskId:
         return {"ok": False, "error": "缺少 taskId"}
+    task = await db.get(Task, body.taskId)
+    if task is not None and _is_workflow_task(task):
+        return {"ok": False, "error": "workflow 任务暂不支持 scheduler-escalate，请通过 workflow command/decision"}
     bus = await get_event_bus()
     await bus.publish(
         topic=TOPIC_TASK_ESCALATED,
@@ -239,6 +341,9 @@ async def scheduler_rollback(body: SchedulerBody, db: AsyncSession = Depends(get
     if not body.taskId:
         return {"ok": False, "error": "缺少 taskId"}
     svc = await _svc(db)
+    task = await svc.get_task(body.taskId)
+    if _is_workflow_task(task):
+        return {"ok": False, "error": "workflow 任务暂不支持 scheduler-rollback，请通过 workflow rollback"}
     try:
         await svc.transition_state(body.taskId, TaskState.Taizi, agent="compat", reason=body.reason or "scheduler rollback")
     except Exception as e:

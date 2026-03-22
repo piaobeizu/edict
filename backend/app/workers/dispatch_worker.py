@@ -347,6 +347,9 @@ class DispatchWorker:
                 task = await db.get(Task, task_id)
                 if not task:
                     return
+                if str(getattr(task, "workflow_type", "legacy") or "legacy") != "legacy":
+                    log.debug("auto-advance skipped for workflow task: %s", task_id)
+                    return
                 current_state = task.state if isinstance(task.state, TaskState) else TaskState(task.state)
                 dispatch_enum = TaskState(dispatch_state) if isinstance(dispatch_state, str) else dispatch_state
 
@@ -391,6 +394,9 @@ class DispatchWorker:
             async with async_session() as db:
                 task = await db.get(Task, task_id)
                 if not task:
+                    return
+                if str(getattr(task, "workflow_type", "legacy") or "legacy") != "legacy":
+                    log.debug("scheduler update skipped for workflow task: %s", task_id)
                     return
                 raw_scheduler = task.scheduler
                 scheduler: dict[str, Any] = dict(raw_scheduler) if isinstance(raw_scheduler, dict) else {}
@@ -512,6 +518,9 @@ class DispatchWorker:
         async with async_session() as db:
             task = await db.get(Task, task_id)
             if not task:
+                return
+            if str(getattr(task, "workflow_type", "legacy") or "legacy") != "legacy":
+                log.debug("skip legacy backfill for workflow task: %s", task_id)
                 return
 
             summary = normalized.get("summary", "")

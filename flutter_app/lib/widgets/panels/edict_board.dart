@@ -3,8 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../models/models.dart';
 import '../../core/core.dart';
-import '../../providers/providers.dart' hide toastProvider;
-import '../../services/services.dart';
+import '../../core/workflow_entry.dart';
+import '../../providers/providers.dart';
+import '../../services/api_client.dart';
 import '../common/common.dart';
 
 class EdictBoardPanel extends ConsumerWidget {
@@ -14,6 +15,15 @@ class EdictBoardPanel extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final liveStatusAsync = ref.watch(liveStatusProvider);
     final filteredEdicts = ref.watch(filteredEdictsProvider);
+    final syncHints = ref.watch(workflowProjectionSyncProvider);
+    final sortedEdicts = [...filteredEdicts];
+    sortedEdicts.sort((a, b) {
+      return compareTasksByWorkflowSyncHint(
+        left: a,
+        right: b,
+        hints: syncHints,
+      );
+    });
     final filter = ref.watch(edictFilterProvider);
 
     return Column(
@@ -29,7 +39,7 @@ class EdictBoardPanel extends ConsumerWidget {
               onRetry: () => ref.read(liveStatusProvider.notifier).refresh(),
             ),
             data: (_) {
-              if (filteredEdicts.isEmpty) {
+              if (sortedEdicts.isEmpty) {
                 return const _EmptyState();
               }
 
@@ -41,9 +51,9 @@ class EdictBoardPanel extends ConsumerWidget {
                   crossAxisSpacing: 10,
                   childAspectRatio: 1.08,
                 ),
-                itemCount: filteredEdicts.length,
+                itemCount: sortedEdicts.length,
                 itemBuilder: (context, index) {
-                  final task = filteredEdicts[index];
+                  final task = sortedEdicts[index];
                   return EdictCardItem(task: task);
                 },
               );
@@ -192,7 +202,17 @@ class EdictCardItem extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final syncHints = ref.watch(workflowProjectionSyncProvider);
+    final route = resolveTaskEntryRoute(task);
+    final workflowId = route.unresolved ? '' : route.workflowId;
+    final workflowEventsState = route.unresolved
+        ? null
+        : ref.watch(workflowEventsProvider(workflowId)).valueOrNull;
+    final workflowCommandStatus = _workflowCommandStatus(workflowEventsState);
+    final hasWorkflowCommandPending =
+        workflowCommandStatus.pending > 0 || workflowCommandStatus.timedOut > 0;
     final isTaskArchived = isArchived(task);
+    final canStartPlanning = task.state == 'Pending' && isWorkflowV2Task(task);
     final canStop =
         !const <String>{'Done', 'Blocked', 'Cancelled'}.contains(task.state);
     final canResume =
@@ -215,8 +235,46 @@ class EdictCardItem extends ConsumerWidget {
     Future<void> doTaskAction(String action, String reason) async {
       final api = ref.read(apiClientProvider);
       final toast = ref.read(toastProvider.notifier);
-      final result = await api.taskAction(task.id, action, reason);
+      if (route.unresolved) {
+        toast.show('workflow 数据待同步，暂不能执行该操作', type: ToastType.err);
+        return;
+      }
+      final baseProjectionVersion = task.projectionVersion;
+      final eventType = _eventTypeForWorkflowAction(action);
+      final result = switch (action) {
+        'start_planning' =>
+          await api.startPlanning(workflowId, content: reason),
+        'stop' => await api.stopWorkflow(workflowId, reason: reason),
+        'cancel' => await api.cancelWorkflow(workflowId, reason: reason),
+        'resume' => await api.resumeWorkflow(workflowId, reason: reason),
+        _ => const ActionResult(ok: false, error: '未知动作'),
+      };
       if (result.ok) {
+        ref
+            .read(workflowEventsProvider(workflowId).notifier)
+            .clearFailedMutations(
+              eventType: eventType,
+              targetType: 'workflow',
+              targetId: workflowId,
+            );
+        final mutationId = (result.entryId ?? '').isNotEmpty
+            ? result.entryId!
+            : 'local-${DateTime.now().microsecondsSinceEpoch}';
+        final workflowEvents =
+            ref.read(workflowEventsProvider(workflowId).notifier);
+        workflowEvents.registerPendingMutation(
+          mutationId: mutationId,
+          eventType: eventType,
+          taskId: task.id,
+          targetType: 'workflow',
+          targetId: workflowId,
+        );
+        ref.read(workflowProjectionSyncProvider.notifier).markSyncing(
+              workflowId: workflowId,
+              taskId: task.id,
+              baseProjectionVersion: baseProjectionVersion,
+            );
+        await workflowEvents.reconcileNow();
         toast.show(result.message ?? '操作成功');
         await ref.read(liveStatusProvider.notifier).refresh(silent: true);
       } else {
@@ -246,6 +304,18 @@ class EdictCardItem extends ConsumerWidget {
       );
       if (!confirmed) return;
       await doTaskAction(action, reason);
+    }
+
+    Future<void> startPlanning() async {
+      final (confirmed, content) = await showConfirmDialog(
+        context: context,
+        title: '开始规划？',
+        message: '将工作流从草稿推进到规划阶段，可附加规划说明。',
+        actionLabel: '开始规划',
+        hintText: '可选：规划说明',
+      );
+      if (!confirmed) return;
+      await doTaskAction('start_planning', content);
     }
 
     final cardBody = Column(
@@ -413,6 +483,64 @@ class EdictCardItem extends ConsumerWidget {
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
             HeartbeatBadge(heartbeat: task.heartbeat),
+            if (shouldShowWorkflowProjectionSyncBadge(
+              task: task,
+              hints: syncHints,
+            ))
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  border: Border.all(color: const Color(0xFFFCD34D)),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  '同步中',
+                  style: TextStyle(
+                    color: Color(0xFFB45309),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            if (hasWorkflowCommandPending)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF7ED),
+                  border: Border.all(color: const Color(0xFFF59E0B)),
+                  borderRadius: BorderRadius.circular(999),
+                ),
+                child: const Text(
+                  '动作待确认',
+                  style: TextStyle(
+                    color: Color(0xFF9A3412),
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            if (workflowCommandStatus.failed > 0)
+              Tooltip(
+                message: '存在 ${workflowCommandStatus.failed} 个确认失败动作，可重试对应操作',
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    border: Border.all(color: const Color(0xFFF87171)),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: const Text(
+                    '可重试',
+                    style: TextStyle(
+                      color: Color(0xFFB91C1C),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
             if (task.state == 'YuLan')
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -463,19 +591,36 @@ class EdictCardItem extends ConsumerWidget {
           spacing: 6,
           runSpacing: 6,
           children: [
+            if (canStartPlanning)
+              _MiniActionButton(
+                label: '🧭开始规划',
+                disabledReason: _workflowPendingReason(workflowCommandStatus),
+                onPressed: hasWorkflowCommandPending ? null : startPlanning,
+              ),
             if (canStop)
               _MiniActionButton(
-                  label: '⏸叫停', onPressed: () => stopOrCancel('stop')),
+                label: '⏸叫停',
+                disabledReason: _workflowPendingReason(workflowCommandStatus),
+                onPressed: hasWorkflowCommandPending
+                    ? null
+                    : () => stopOrCancel('stop'),
+              ),
             if (canStop)
               _MiniActionButton(
                 label: '🚫取消',
                 danger: true,
-                onPressed: () => stopOrCancel('cancel'),
+                disabledReason: _workflowPendingReason(workflowCommandStatus),
+                onPressed: hasWorkflowCommandPending
+                    ? null
+                    : () => stopOrCancel('cancel'),
               ),
             if (canResume)
               _MiniActionButton(
                 label: '▶恢复',
-                onPressed: () => doTaskAction('resume', '恢复执行'),
+                disabledReason: _workflowPendingReason(workflowCommandStatus),
+                onPressed: hasWorkflowCommandPending
+                    ? null
+                    : () => doTaskAction('resume', '恢复执行'),
               ),
             if (isTaskArchived && !task.archived)
               _MiniActionButton(label: '📦归档', onPressed: toggleArchive),
@@ -489,7 +634,16 @@ class EdictCardItem extends ConsumerWidget {
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () => ref.read(modalTaskIdProvider.notifier).state = task.id,
+        onTap: () {
+          if (!route.unresolved) {
+            ref.read(modalWorkflowIdProvider.notifier).state = route.workflowId;
+            return;
+          }
+          ref.read(toastProvider.notifier).show(
+                '该任务的 workflow 数据待同步，请稍后重试',
+                type: ToastType.err,
+              );
+        },
         borderRadius: BorderRadius.circular(14),
         child: CustomPaint(
           painter: isTaskArchived ? const _DashedCardBorderPainter() : null,
@@ -515,15 +669,19 @@ class EdictCardItem extends ConsumerWidget {
 
 class _MiniActionButton extends StatelessWidget {
   const _MiniActionButton(
-      {required this.label, required this.onPressed, this.danger = false});
+      {required this.label,
+      required this.onPressed,
+      this.danger = false,
+      this.disabledReason});
 
   final String label;
-  final VoidCallback onPressed;
+  final VoidCallback? onPressed;
   final bool danger;
+  final String? disabledReason;
 
   @override
   Widget build(BuildContext context) {
-    return OutlinedButton(
+    final button = OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
         visualDensity: VisualDensity.compact,
@@ -546,7 +704,59 @@ class _MiniActionButton extends StatelessWidget {
         ),
       ),
     );
+    if (onPressed != null) {
+      return button;
+    }
+    return Tooltip(
+      message: disabledReason ?? '当前不可操作，请稍后重试',
+      child: button,
+    );
   }
+}
+
+String _eventTypeForWorkflowAction(String action) {
+  return switch (action) {
+    'start_planning' => ApiClient.eventStartPlanning,
+    'stop' => ApiClient.eventStopWorkflow,
+    'cancel' => ApiClient.eventCancelWorkflow,
+    'resume' => ApiClient.eventResumeWorkflow,
+    _ => 'workflow.v2.command.unknown',
+  };
+}
+
+({int pending, int timedOut, int failed}) _workflowCommandStatus(
+  WorkflowEventsState? state,
+) {
+  var pending = 0;
+  var timedOut = 0;
+  var failed = 0;
+  if (state == null) {
+    return (pending: 0, timedOut: 0, failed: 0);
+  }
+  for (final mutation in state.pendingMutations.values) {
+    if (!mutation.eventType.toLowerCase().startsWith('workflow.v2.command.')) {
+      continue;
+    }
+    if (mutation.status == 'pending') {
+      pending += 1;
+    } else if (mutation.status == 'timed_out') {
+      timedOut += 1;
+    } else if (mutation.status == 'failed') {
+      failed += 1;
+    }
+  }
+  return (pending: pending, timedOut: timedOut, failed: failed);
+}
+
+String _workflowPendingReason(
+    ({int pending, int timedOut, int failed}) status) {
+  if (status.timedOut > 0) {
+    return '有 ${status.timedOut} 个动作确认超时，请先打开详情页刷新核对';
+  }
+  if (status.pending > 0) {
+    return '有 ${status.pending} 个 workflow 动作待确认，请稍后重试';
+  }
+  return '当前不可操作，请稍后重试';
 }
 
 class _FilterChipButton extends StatelessWidget {

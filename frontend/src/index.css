@@ -203,6 +203,8 @@ body {
 
 /* ══ Task Actions ══ */
 .task-actions { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.task-actions-row { width: 100%; display: flex; gap: 8px; flex-wrap: nowrap; }
+.task-actions-row .btn-action { flex: 1 1 0; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 7px 10px; }
 .btn-action { font-size: 12px; padding: 7px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: 700; transition: all .15s; }
 .btn-stop { background: #ff527022; color: #ff5270; border: 1px solid #ff527044; }
 .btn-stop:hover { background: #ff527044; }

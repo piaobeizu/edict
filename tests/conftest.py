@@ -6,6 +6,7 @@ from pathlib import Path
 root = Path(__file__).parent.parent
 extra_paths = [
     root / "backend",
+    root / "kernel" / "src",
     root,
 ]
 for path in reversed(extra_paths):

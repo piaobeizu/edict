@@ -20,8 +20,8 @@
 | backend | `backend/app/main.py` | 8001 | FastAPI 主服务，REST API + WebSocket |
 | orchestrator | `backend/app/workers/orchestrator_worker.py` | — | 消费事件，推进任务状态流转 |
 | dispatcher | `backend/app/workers/dispatch_worker.py` | — | 执行 OpenClaw Agent 派发，回填任务产出 |
-| frontend | `frontend/` (Nginx) | 8002 | React 看板静态资源托管 |
-| flutter_app | `flutter_app/` (Nginx) | 8002 | Flutter Web 主前端 |
+| frontend | `flutter_app/` (Nginx) | 8002 | Flutter Web 主前端（维护中） |
+| frontend_react_archive | `frontend/` | — | React 看板归档代码（不再维护） |
 
 ---
 

@@ -1,6 +1,6 @@
 # 当前代码结构设计说明
 
-> 本文档说明 Edict 当前仓库的代码分层、目录职责，以及 `backend / kernel / frontend` 之间的关系。
+> 本文档说明 Edict 当前仓库的代码分层、目录职责，以及 `backend / kernel / flutter_app` 之间的关系。
 
 ---
 
@@ -10,13 +10,13 @@
 
 1. **`backend/`**：后端应用层
 2. **`kernel/`**：可复用的工作流核心层
-3. **`frontend/`**：前端展示层
+3. **`flutter_app/`**：前端展示层（Web 主线）
 
 目标是把：
 
 - **业务编排与基础状态机** 拆到 `kernel/`
 - **数据库 / API / Worker / 通知 / OpenClaw 集成** 放在 `backend/`
-- **可视化与交互界面** 放在 `frontend/`
+- **可视化与交互界面** 放在 `flutter_app/`
 
 ---
 
@@ -24,7 +24,8 @@
 
 ```text
 backend/         后端服务、数据库模型、API、Worker、迁移
-frontend/        React + Vite 前端
+flutter_app/     Flutter Web 前端（主线）
+frontend/        React + Vite 前端（归档）
 kernel/          工作流核心与适配层
 agents/          Agent SOUL 配置
 tests/           仓库级测试
@@ -100,17 +101,17 @@ kernel/
 
 ---
 
-## 5. frontend/：前端展示层
+## 5. flutter_app/：前端展示层（Web 主线）
 
 ```text
-frontend/
-├── src/
-├── package.json
-├── vite.config.ts
+flutter_app/
+├── lib/
+├── web/
+├── pubspec.yaml
 └── Dockerfile
 ```
 
-这是 React + Vite 前端，负责：
+这是 Flutter Web 前端，负责：
 
 - 看板展示
 - 任务列表与详情交互
@@ -134,9 +135,9 @@ frontend/
 3. 引擎通过 ports 调 repo / bus / executor / routing
 4. adapters 再落到 SQLAlchemy / Redis / OpenClaw
 
-### frontend 与 backend
+### flutter_app 与 backend
 
-- `frontend/` 通过 HTTP / WebSocket 调 `backend/`
+- `flutter_app/` 通过 HTTP / WebSocket 调 `backend/`
 - 不直接 import Python 代码
 
 ### agents 与 backend
@@ -166,4 +167,6 @@ frontend/
 5. `kernel/src/state_machine.py`
 6. `kernel/src/adapters/edict_routing.py`
 7. `backend/app/workers/dispatch_worker.py`
-8. `frontend/src/`
+8. `flutter_app/lib/`
+
+> 补充：`frontend/`（React）目录已归档，不再作为 Web 主线维护目标。

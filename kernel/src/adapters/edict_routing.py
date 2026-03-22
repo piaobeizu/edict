@@ -6,12 +6,8 @@
 
 from __future__ import annotations
 
-try:  # installed/package mode
-    from ..state_machine import StateMachine
-    from ..task_entity import TaskEntity
-except ImportError:  # source-path test mode
-    from state_machine import StateMachine
-    from task_entity import TaskEntity
+from ..state_machine import StateMachine
+from ..task_entity import TaskEntity
 
 # ══════════════════════════════════════
 # 状态定义

@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/theme.dart';
 import '../../core/utils.dart';
+import '../../core/workflow_entry.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
 import '../common/heartbeat_badge.dart';
 import '../common/state_tag.dart';
+import '../common/toast_overlay.dart';
 
 class OfficialPanel extends ConsumerWidget {
   const OfficialPanel({super.key});
@@ -62,7 +64,23 @@ class OfficialPanel extends ConsumerWidget {
                     official: selected,
                     maxToken: maxTokenTotal <= 0 ? 1 : maxTokenTotal,
                     onOpenTask: (taskId) {
-                      ref.read(modalTaskIdProvider.notifier).state = taskId;
+                      final task = ref.read(taskByIdProvider(taskId));
+                      if (task == null) {
+                        ref.read(toastProvider.notifier).show(
+                              '未找到任务，请刷新后重试',
+                              type: ToastType.err,
+                            );
+                        return;
+                      }
+                      final route = resolveTaskEntryRoute(task);
+                      if (route.unresolved) {
+                        ref.read(toastProvider.notifier).show(
+                              'workflow 数据待同步，请稍后重试',
+                              type: ToastType.err,
+                            );
+                        return;
+                      }
+                      ref.read(modalWorkflowIdProvider.notifier).state = route.workflowId;
                     },
                   );
 

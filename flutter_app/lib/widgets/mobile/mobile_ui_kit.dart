@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'mobile_surface.dart';
+import 'mobile_tokens.dart';
 
 class MobileSectionTitle extends StatelessWidget {
   const MobileSectionTitle({
@@ -24,7 +24,7 @@ class MobileSectionTitle extends StatelessWidget {
             child: Text(
               title,
               style: const TextStyle(
-                color: Color(0xFF1C1917),
+                color: MobileUiTokens.heading,
                 fontSize: 18,
                 fontWeight: FontWeight.w800,
               ),
@@ -52,10 +52,10 @@ class MobileSurfaceCard extends StatelessWidget {
     return Container(
       padding: padding,
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: MobileUiTokens.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFF0EEEB)),
-        boxShadow: const [MobileImmersiveBackground.cardShadow],
+        border: Border.all(color: MobileUiTokens.border),
+        boxShadow: const [MobileUiTokens.cardShadow],
       ),
       child: child,
     );
@@ -109,7 +109,7 @@ class MobilePrimaryButton extends StatelessWidget {
     return FilledButton(
       onPressed: onPressed,
       style: FilledButton.styleFrom(
-        backgroundColor: const Color(0xFF4338CA),
+        backgroundColor: MobileUiTokens.primary,
         foregroundColor: Colors.white,
         padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -134,7 +134,7 @@ class MobileOutlineButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final style = OutlinedButton.styleFrom(
-      foregroundColor: const Color(0xFF4338CA),
+      foregroundColor: MobileUiTokens.primary,
       side: const BorderSide(color: Color(0xFFD8D6F7)),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),

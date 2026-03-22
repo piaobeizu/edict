@@ -5,7 +5,7 @@ set -euo pipefail
 # 用法:
 #   ./scripts/redeploy_v2.sh full      # 全量重部署（默认）
 #   ./scripts/redeploy_v2.sh backend   # 仅后端/worker（并重启 frontend 规避 502）
-#   ./scripts/redeploy_v2.sh frontend  # 仅前端（强制 no-cache 重建）
+#   ./scripts/redeploy_v2.sh frontend  # 仅前端（先编译 Flutter Web，再强制 no-cache 重建）
 #
 # 可选环境变量（用于自动配置 OpenClaw 鉴权）:
 #   OPENAI_API_KEY / OPENAI_BASE_URL / OPENAI_MODEL   -> 第三方 OpenAI 兼容
@@ -13,6 +13,7 @@ set -euo pipefail
 #   OPENAI_API_KEY                                    -> OpenAI 官方
 #   ANTHROPIC_API_KEY                                 -> Anthropic 官方
 #   SKIP_OPENCLAW_AUTH=1                              -> 跳过自动鉴权配置
+#   SKIP_FLUTTER_BUILD=1                              -> 跳过 flutter build web（要求 build/web 已存在）
 
 MODE="${1:-full}"
 
@@ -26,6 +27,37 @@ echo "==> Compose: $COMPOSE_FILE"
 
 ensure_up() {
   "${DC[@]}" ps
+}
+
+build_flutter_web_assets() {
+  if [[ "${SKIP_FLUTTER_BUILD:-0}" == "1" ]]; then
+    echo "==> Skip Flutter Web build (SKIP_FLUTTER_BUILD=1)"
+    if [[ ! -d "$ROOT_DIR/flutter_app/build/web" ]]; then
+      echo "❌ flutter_app/build/web 不存在，无法跳过编译。"
+      exit 1
+    fi
+    return
+  fi
+
+  echo "==> Build Flutter Web assets"
+  if ! command -v flutter >/dev/null 2>&1; then
+    echo "❌ 未检测到 flutter 命令，请先安装 Flutter，或设置 SKIP_FLUTTER_BUILD=1（且确保 build/web 已存在）。"
+    exit 1
+  fi
+
+  (
+    cd "$ROOT_DIR/flutter_app"
+    flutter pub get
+    local build_help
+    build_help="$(flutter build web --help 2>/dev/null || true)"
+    if [[ "$build_help" == *"--web-renderer"* ]]; then
+      # Older Flutter versions support selecting renderer explicitly.
+      flutter build web --release --web-renderer html
+    else
+      # Newer Flutter versions removed this flag.
+      flutter build web --release
+    fi
+  )
 }
 
 ensure_openclaw_agents() {
@@ -198,6 +230,7 @@ smoke_test() {
 case "$MODE" in
   full)
     echo "==> Full redeploy"
+    build_flutter_web_assets
     "${DC[@]}" down
     "${DC[@]}" up -d --build
     "${DC[@]}" restart frontend
@@ -217,6 +250,7 @@ case "$MODE" in
     ;;
   frontend)
     echo "==> Frontend redeploy"
+    build_flutter_web_assets
     "${DC[@]}" build --no-cache frontend
     "${DC[@]}" up -d --force-recreate frontend
     ;;

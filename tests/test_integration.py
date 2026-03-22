@@ -297,6 +297,7 @@ class TestTaskServiceTransition:
         mock_task.state = TaskState.Taizi
         mock_task.trace_id = "JJC-009"
         mock_task.flow_log = []
+        mock_task.workflow_type = "legacy"
 
         mock_db = self._mock_db_for_transition(mock_task)
 
@@ -317,6 +318,7 @@ class TestTaskServiceTransition:
         mock_task.trace_id = "JJC-010"
         mock_task.flow_log = []
         mock_task.updated_at = None
+        mock_task.workflow_type = "legacy"
 
         mock_db = self._mock_db_for_transition(mock_task)
 

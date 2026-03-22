@@ -117,6 +117,7 @@ class TaskService:
         task = result.scalars().first()
         if task is None:
             raise ValueError(f"Task not found: {task_id}")
+        self._assert_legacy_mutation(task, "transition_state")
         old_state = task.state if isinstance(task.state, TaskState) else TaskState(task.state)
 
         # 校验合法流转
@@ -173,6 +174,7 @@ class TaskService:
     ):
         """发布 task.dispatch 事件，由 DispatchWorker 消费执行。"""
         task = await self._get_task(task_id)
+        self._assert_legacy_mutation(task, "request_dispatch")
         scheduler = dict(task.scheduler or {})
         dispatch_round = int(scheduler.get("lastDispatchRound", 0) or 0) + 1
         await self.bus.publish(
@@ -199,6 +201,7 @@ class TaskService:
         content: str,
     ) -> Task:
         task = await self._get_task(task_id)
+        self._assert_legacy_mutation(task, "add_progress")
         entry = {
             "agent": agent,
             "content": content,
@@ -217,6 +220,7 @@ class TaskService:
         todos: list[dict],
     ) -> Task:
         task = await self._get_task(task_id)
+        self._assert_legacy_mutation(task, "update_todos")
         task.todos = todos
         task.updated_at = datetime.now(timezone.utc)
         await self.db.commit()
@@ -228,6 +232,7 @@ class TaskService:
         scheduler: dict,
     ) -> Task:
         task = await self._get_task(task_id)
+        self._assert_legacy_mutation(task, "update_scheduler")
         task.scheduler = scheduler
         task.updated_at = datetime.now(timezone.utc)
         await self.db.commit()
@@ -266,6 +271,10 @@ class TaskService:
         active_tasks = {}
         completed_tasks = {}
         for t in tasks:
+            # Frontend 已切换为 workflow v2 单轨，缺少 workflow_id 的遗留任务
+            # 统一通过数据迁移脚本处理，避免进入新前端列表造成“不可打开”项。
+            if not str(getattr(t, "workflow_id", "") or "").strip():
+                continue
             d = t.to_dict()
             st = t.state if isinstance(t.state, TaskState) else TaskState(t.state)
             if st in TERMINAL_STATES:
@@ -292,3 +301,12 @@ class TaskService:
         if task is None:
             raise ValueError(f"Task not found: {task_id}")
         return task
+
+    @staticmethod
+    def _assert_legacy_mutation(task: Task, op: str) -> None:
+        workflow_type = str(getattr(task, "workflow_type", "legacy") or "legacy")
+        if workflow_type != "legacy":
+            raise ValueError(
+                f"Task {task.id} is workflow_type={workflow_type}; "
+                f"{op} must go through workflow v2 projection/decision flow"
+            )

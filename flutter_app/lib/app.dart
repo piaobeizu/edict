@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'core/core.dart';
 import 'providers/providers.dart';
-import 'widgets/common/toast_overlay.dart';
+import 'widgets/common/common.dart';
 import 'widgets/panels/edict_board.dart';
 import 'widgets/panels/memorial_panel.dart';
 import 'widgets/panels/model_config.dart';
@@ -12,8 +13,9 @@ import 'widgets/panels/morning_panel.dart';
 import 'widgets/panels/official_panel.dart';
 import 'widgets/panels/sessions_panel.dart';
 import 'widgets/panels/skills_config.dart';
-import 'widgets/panels/task_modal.dart';
 import 'widgets/panels/template_panel.dart';
+import 'widgets/panels/workflow_modal.dart';
+import 'widgets/panels/e2e_flow_panel.dart';
 
 class EdictApp extends StatelessWidget {
   const EdictApp({super.key});
@@ -39,8 +41,9 @@ class _EdictHome extends ConsumerStatefulWidget {
 class _EdictHomeState extends ConsumerState<_EdictHome>
     with SingleTickerProviderStateMixin {
   late final TabController _tabController;
+  late final List<(String, String, Widget)> _tabs;
 
-  static const _tabs = <(String, String, Widget)>[
+  static const _baseTabs = <(String, String, Widget)>[
     ('edicts', '📜 旨意看板', EdictBoardPanel()),
     ('monitor', '🏛️ 省部调度', MonitorPanel()),
     ('officials', '👔 官员总览', OfficialPanel()),
@@ -52,10 +55,26 @@ class _EdictHomeState extends ConsumerState<_EdictHome>
     ('morning', '🌅 天下要闻', MorningPanel()),
   ];
 
+  bool get _enableE2EPanel {
+    if (!kIsWeb) {
+      return false;
+    }
+    final v = (Uri.base.queryParameters['e2e'] ?? '').trim().toLowerCase();
+    return v == '1' || v == 'true' || v == 'on' || v == 'yes';
+  }
+
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabs = <(String, String, Widget)>[
+      ..._baseTabs,
+      if (_enableE2EPanel) ('e2e', '🧪 E2E流程', const E2EFlowPanel()),
+    ];
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: _enableE2EPanel ? _tabs.length - 1 : 0,
+    );
   }
 
   @override
@@ -71,70 +90,126 @@ class _EdictHomeState extends ConsumerState<_EdictHome>
     final activeCount = tasks.where((t) => isEdict(t) && !isArchived(t)).length;
     final syncOk = liveStatus.valueOrNull != null;
 
+    final scaffold = Scaffold(
+      appBar: AppBar(
+        toolbarHeight: 56,
+        titleSpacing: 16,
+        title: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [EdictTheme.acc, EdictTheme.acc2],
+              ).createShader(bounds),
+              child: const Text(
+                '三省六部',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+            const Text(
+              'AI多Agent协作平台',
+              style: TextStyle(color: EdictTheme.muted, fontSize: 12),
+            ),
+          ],
+        ),
+        actions: [
+          _Chip(
+            dot: syncOk ? EdictTheme.ok : EdictTheme.danger,
+            label: syncOk ? '已连接' : '连接中',
+          ),
+          const SizedBox(width: 6),
+          _Chip(label: '活跃旨意 $activeCount'),
+          const SizedBox(width: 6),
+          IconButton(
+            onPressed: () => ref.invalidate(liveStatusProvider),
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            tooltip: '刷新',
+          ),
+          if (_enableE2EPanel)
+            IconButton(
+              onPressed: _openE2EDialog,
+              icon: const Icon(Icons.science_rounded, size: 20),
+              tooltip: '打开E2E流程面板',
+            ),
+          const SizedBox(width: 8),
+        ],
+        bottom: TabBar(
+          controller: _tabController,
+          isScrollable: true,
+          indicatorColor: EdictTheme.acc,
+          labelColor: EdictTheme.text,
+          unselectedLabelColor: EdictTheme.muted,
+          tabAlignment: TabAlignment.start,
+          dividerHeight: 0,
+          tabs: _tabs.map((t) => Tab(text: t.$2)).toList(),
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children:
+            _tabs.map((t) => _SafePanel(name: t.$2, child: t.$3)).toList(),
+      ),
+    );
+
     return Stack(
       children: [
-        Scaffold(
-          appBar: AppBar(
-            toolbarHeight: 56,
-            titleSpacing: 16,
-            title: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => const LinearGradient(
-                    colors: [EdictTheme.acc, EdictTheme.acc2],
-                  ).createShader(bounds),
-                  child: const Text(
-                    '三省六部',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 22,
-                      fontWeight: FontWeight.w800,
-                    ),
+        kIsWeb ? SafeSelectionArea(child: scaffold) : scaffold,
+        const ToastOverlay(),
+        const WorkflowModalHost(),
+      ],
+    );
+  }
+
+  void _openE2EDialog() {
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        child: SizedBox(
+          width: 980,
+          height: 680,
+          child: Column(
+            children: [
+              Container(
+                height: 52,
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                alignment: Alignment.centerLeft,
+                decoration: const BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(color: EdictTheme.line),
                   ),
                 ),
-                const SizedBox(width: 10),
-                const Text(
-                  'AI多Agent协作平台',
-                  style: TextStyle(color: EdictTheme.muted, fontSize: 12),
+                child: Row(
+                  children: [
+                    const Expanded(
+                      child: Text(
+                        '🧪 Web E2E 流程面板',
+                        style: TextStyle(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    IconButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                      tooltip: '关闭',
+                    ),
+                  ],
                 ),
-              ],
-            ),
-            actions: [
-              _Chip(
-                dot: syncOk ? EdictTheme.ok : EdictTheme.danger,
-                label: syncOk ? '已连接' : '连接中',
               ),
-              const SizedBox(width: 6),
-              _Chip(label: '活跃旨意 $activeCount'),
-              const SizedBox(width: 6),
-              IconButton(
-                onPressed: () => ref.invalidate(liveStatusProvider),
-                icon: const Icon(Icons.refresh_rounded, size: 20),
-                tooltip: '刷新',
+              const Expanded(
+                child: Padding(
+                  padding: EdgeInsets.all(8),
+                  child: E2EFlowPanel(),
+                ),
               ),
-              const SizedBox(width: 8),
             ],
-            bottom: TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              indicatorColor: EdictTheme.acc,
-              labelColor: EdictTheme.text,
-              unselectedLabelColor: EdictTheme.muted,
-              tabAlignment: TabAlignment.start,
-              dividerHeight: 0,
-              tabs: _tabs.map((t) => Tab(text: t.$2)).toList(),
-            ),
-          ),
-          body: TabBarView(
-            controller: _tabController,
-            children:
-                _tabs.map((t) => _SafePanel(name: t.$2, child: t.$3)).toList(),
           ),
         ),
-        const ToastOverlay(),
-        const TaskModalHost(),
-      ],
+      ),
     );
   }
 }

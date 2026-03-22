@@ -95,6 +95,13 @@ class Task(Base):
     output = Column(Text, default="", comment="最终产出")
     priority = Column(String(16), default="normal", comment="优先级")
     archived = Column(Boolean, default=False, index=True)
+    workflow_id = Column(String(64), default="", index=True, comment="对应 workflow_instances.id")
+    workflow_type = Column(String(32), default="legacy", index=True, comment="legacy|generic|video|coding|report")
+    projection_version = Column(Integer, default=0, comment="projection 版本号")
+    current_revision_id = Column(String(64), default="", comment="当前激活 revision")
+    current_assembly_id = Column(String(64), default="", comment="当前激活 assembly")
+    pending_review_count = Column(Integer, default=0, comment="待审批对象数量")
+    running_node_count = Column(Integer, default=0, comment="运行中的 node 数量")
 
     # JSONB 灵活字段
     flow_log = Column(JSONB, default=list, comment="流转日志 [{at, from, to, remark}]")
@@ -136,6 +143,13 @@ class Task(Base):
             "output": self.output,
             "priority": self.priority,
             "archived": self.archived,
+            "workflowId": self.workflow_id,
+            "workflowType": self.workflow_type,
+            "projectionVersion": self.projection_version,
+            "currentRevisionId": self.current_revision_id,
+            "currentAssemblyId": self.current_assembly_id,
+            "pendingReviewCount": self.pending_review_count,
+            "runningNodeCount": self.running_node_count,
             "flow_log": self.flow_log or [],
             "progress_log": self.progress_log or [],
             "todos": todos,

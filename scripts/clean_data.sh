@@ -1,58 +1,164 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Edict 安全数据清理脚本
+# Edict Workflow V2 数据清理脚本
 # 用法:
-#   ./scripts/clean_data.sh          # 清空任务+事件，保留 Streams/Groups
-#   ./scripts/clean_data.sh --full   # 清空全部（含 Redis Streams），然后重建
+#   ./scripts/clean_data.sh
+#   ./scripts/clean_data.sh --safe
+#   ./scripts/clean_data.sh --full
+#
+# 说明:
+#   --safe (默认):
+#     1) 清空 PostgreSQL 运行数据（含 workflow v2 全量业务表）
+#     2) 清空 Redis edict:* 业务 key，但保留 edict:stream:* key 与 consumer groups
+#        同时将 stream 消息裁剪为 0（保留 stream/group 结构）
+#     3) 清空 artifacts 文件
+#     4) 重启 backend（重建 in-process workflow workers）
+#
+#   --full:
+#     1) 同 safe 的 PostgreSQL + artifacts 清理
+#     2) Redis FLUSHDB（全量清空）
+#     3) 重启 backend；若存在 orchestrator/dispatcher 服务则一并重启
 
 ROOT_DIR="/root/code/python/agents/edict"
 COMPOSE_FILE="$ROOT_DIR/docker-compose.yml"
 DC=(docker compose --project-directory "$ROOT_DIR" -f "$COMPOSE_FILE")
 
-MODE="${1:-safe}"
+MODE="${1:---safe}"
+
+usage() {
+  echo "Usage: $0 [--safe|--full]"
+}
+
+compose_service_exists() {
+  local service="$1"
+  "${DC[@]}" config --services | rg -x -- "$service" >/dev/null 2>&1
+}
+
+ensure_compose_up() {
+  echo "==> Checking compose stack..."
+  "${DC[@]}" ps >/dev/null
+}
+
+clean_postgres() {
+  echo "==> Cleaning PostgreSQL workflow/runtime tables..."
+  "${DC[@]}" exec -T postgres psql -v ON_ERROR_STOP=1 -U edict <<'SQL'
+DO $$
+DECLARE
+  tbl text;
+  tables text[] := ARRAY[
+    -- workflow v2
+    'public.workflow_artifacts',
+    'public.workflow_decisions',
+    'public.workflow_assemblies',
+    'public.workflow_candidates',
+    'public.workflow_nodes',
+    'public.workflow_revisions',
+    'public.workflow_outbox',
+    'public.workflow_instances',
+    -- legacy runtime data
+    'public.thoughts',
+    'public.todos',
+    'public.events',
+    'public.tasks'
+  ];
+BEGIN
+  FOREACH tbl IN ARRAY tables LOOP
+    IF to_regclass(tbl) IS NOT NULL THEN
+      EXECUTE format('TRUNCATE TABLE %s RESTART IDENTITY CASCADE', tbl);
+      RAISE NOTICE 'truncated: %', tbl;
+    ELSE
+      RAISE NOTICE 'skip missing table: %', tbl;
+    END IF;
+  END LOOP;
+END $$;
+SQL
+  echo "✅ PostgreSQL tables cleaned"
+}
+
+clean_redis_safe() {
+  echo "==> Safe Redis cleanup (keep streams/groups, clear messages)..."
+  "${DC[@]}" exec -T redis redis-cli --no-auth-warning EVAL "
+    local cursor = '0'
+    local deleted = 0
+    local trimmed = 0
+    repeat
+      local scan = redis.call('SCAN', cursor, 'MATCH', 'edict:*', 'COUNT', 500)
+      cursor = scan[1]
+      local keys = scan[2]
+      for _, k in ipairs(keys) do
+        if string.sub(k, 1, 13) == 'edict:stream:' then
+          redis.call('XTRIM', k, 'MAXLEN', 0)
+          trimmed = trimmed + 1
+        else
+          redis.call('DEL', k)
+          deleted = deleted + 1
+        end
+      end
+    until cursor == '0'
+    return {deleted, trimmed}
+  " 0
+  echo "✅ Redis safe cleanup complete"
+}
+
+clean_redis_full() {
+  echo "==> Full Redis flush..."
+  "${DC[@]}" exec -T redis redis-cli --no-auth-warning FLUSHDB
+  echo "✅ Redis FLUSHDB complete"
+}
+
+clean_artifacts() {
+  echo "==> Cleaning artifact files..."
+  "${DC[@]}" exec -T backend sh -lc 'rm -rf /app/data/artifacts/* 2>/dev/null || true'
+  echo "✅ Artifacts cleaned"
+}
+
+restart_workers() {
+  echo "==> Restarting backend (recreate in-process workers)..."
+  if compose_service_exists backend; then
+    "${DC[@]}" restart backend
+  fi
+
+  # 兼容 legacy 独立 worker 容器（如果 compose 里仍有）
+  if compose_service_exists orchestrator; then
+    "${DC[@]}" restart orchestrator
+  fi
+  if compose_service_exists dispatcher; then
+    "${DC[@]}" restart dispatcher
+  fi
+
+  sleep 2
+  echo "✅ Worker processes restarted"
+}
+
+case "$MODE" in
+  --safe)
+    ;;
+  --full)
+    ;;
+  -h|--help)
+    usage
+    exit 0
+    ;;
+  *)
+    echo "❌ Unknown mode: $MODE"
+    usage
+    exit 2
+    ;;
+esac
 
 echo "==> Clean mode: $MODE"
+ensure_compose_up
+clean_postgres
 
-# ── 1. 清空 PostgreSQL 任务和事件表 ──
-echo "==> Cleaning PostgreSQL tables..."
-"${DC[@]}" exec -T postgres psql -U edict -c "
-  DELETE FROM events;
-  DELETE FROM tasks;
-"
-echo "✅ PostgreSQL: tasks + events cleared"
-
-# ── 2. 清空 Redis 业务数据（保留 Streams 和 Consumer Groups）──
 if [[ "$MODE" == "--full" ]]; then
-  echo "==> Full Redis flush (will recreate streams)..."
-  "${DC[@]}" exec -T redis redis-cli FLUSHDB
-  echo "⚠️  Redis FLUSHDB done — restarting workers to recreate consumer groups..."
-  "${DC[@]}" restart orchestrator dispatcher
-  sleep 3
-  echo "✅ Workers restarted, streams recreated"
+  clean_redis_full
 else
-  echo "==> Safe Redis cleanup (keeping streams & consumer groups)..."
-  "${DC[@]}" exec -T redis redis-cli --no-auth-warning eval "
-    local keys = redis.call('KEYS', 'edict:orch:*')
-    for i, k in ipairs(keys) do redis.call('DEL', k) end
-    local keys2 = redis.call('KEYS', 'edict:dispatch:*')
-    for i, k in ipairs(keys2) do redis.call('DEL', k) end
-    local keys3 = redis.call('KEYS', 'edict:pubsub:*')
-    for i, k in ipairs(keys3) do redis.call('DEL', k) end
-    local keys4 = redis.call('KEYS', 'edict:throttle:*')
-    for i, k in ipairs(keys4) do redis.call('DEL', k) end
-    -- Trim streams to 0 (keep stream + group, remove all messages)
-    local streams = redis.call('KEYS', 'edict:stream:*')
-    for i, s in ipairs(streams) do redis.call('XTRIM', s, 'MAXLEN', 0) end
-    return #keys + #keys2 + #keys3 + #keys4 + #streams
-  " 0
-  echo "✅ Redis: business keys + stream messages cleared, groups preserved"
+  clean_redis_safe
 fi
 
-# ── 3. 清空产出文件 ──
-echo "==> Cleaning artifact files..."
-"${DC[@]}" exec -T backend sh -c 'rm -rf /app/data/artifacts/* 2>/dev/null; echo "done"'
-echo "✅ Artifacts cleared"
+clean_artifacts
+restart_workers
 
 echo ""
-echo "🧹 Data cleanup complete. System ready for new tasks."
+echo "🧹 Data cleanup complete. System ready for fresh Workflow V2 testing."

@@ -7,4 +7,4 @@ export 'sessions_panel.dart';
 export 'memorial_panel.dart';
 export 'template_panel.dart';
 export 'morning_panel.dart';
-export 'task_modal.dart';
+export 'workflow_modal.dart';

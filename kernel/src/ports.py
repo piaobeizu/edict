@@ -1,21 +1,13 @@
 """核心接口定义 (Ports) — 依赖倒置的关键。
 
 Kernel 只依赖这些 Protocol，不知道具体实现。
-具体实现在 adapters/ 目录：
-  - TaskRepo       → adapters/pg_task_repo.py (Postgres)
-  - EventBusPort   → adapters/redis_event_bus.py (Redis Streams)
-  - AgentExecutor  → adapters/openclaw_executor.py (OpenClaw CLI)
-  - RoutingPolicy  → adapters/edict_routing.py (三省六部)
 """
 
 from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-try:  # installed/package mode
-    from .task_entity import TaskEntity
-except ImportError:  # source-path test mode
-    from task_entity import TaskEntity
+from .task_entity import TaskEntity
 
 
 # ══════════════════════════════════════
@@ -100,27 +92,8 @@ class EventBusPort(Protocol):
 
 
 # ══════════════════════════════════════
-# 3. AgentExecutor — Agent 执行
+# 3. ExecutionResult — Agent 执行结果
 # ══════════════════════════════════════
-
-@runtime_checkable
-class AgentExecutor(Protocol):
-    """Agent 执行器接口。
-
-    一次 execute 调用 = 一次 agent 工作单元。
-    具体实现可以是 OpenClaw CLI、HTTP API、本地函数等。
-    """
-
-    async def execute(
-        self,
-        agent_id: str,
-        message: str,
-        context: dict[str, Any] | None = None,
-        timeout: int = 300,
-    ) -> "ExecutionResult":
-        """执行 agent 任务。"""
-        ...
-
 
 class ExecutionResult:
     """Agent 执行结果。"""
@@ -149,28 +122,3 @@ class ExecutionResult:
             "duration_ms": self.duration_ms,
             "metadata": self.metadata,
         }
-
-
-# ══════════════════════════════════════
-# 4. RoutingPolicy — 路由策略
-# ══════════════════════════════════════
-
-@runtime_checkable
-class RoutingPolicy(Protocol):
-    """任务路由策略 — 决定下一个 agent 和状态。
-
-    三省六部的具体路由逻辑是这个接口的一个实现。
-    换一套组织架构只需换一个 RoutingPolicy。
-    """
-
-    def next_agent(self, task: TaskEntity) -> str | None:
-        """根据当前任务状态决定下一个 agent。返回 None 表示无需派发。"""
-        ...
-
-    def next_state_after_completion(self, task: TaskEntity) -> str | None:
-        """Agent 完成后应该转到什么状态。返回 None 表示保持不变。"""
-        ...
-
-    def suggest_assignee(self, task: TaskEntity) -> str:
-        """建议的执行者/部门。"""
-        ...

@@ -1,14 +1,25 @@
 class ActionResult {
   final bool ok;
+  final bool? accepted;
+  final String? entryId;
   final String? message;
   final String? error;
   final String? taskId;
 
-  const ActionResult({required this.ok, this.message, this.error, this.taskId});
+  const ActionResult({
+    required this.ok,
+    this.accepted,
+    this.entryId,
+    this.message,
+    this.error,
+    this.taskId,
+  });
 
   factory ActionResult.fromJson(Map<String, dynamic> json) {
     return ActionResult(
       ok: json['ok'] == true,
+      accepted: json['accepted'] as bool?,
+      entryId: (json['entryId'] ?? json['entry_id'])?.toString(),
       message: json['message']?.toString(),
       error: json['error']?.toString(),
       taskId: (json['taskId'] ?? json['task_id'])?.toString(),
@@ -17,6 +28,8 @@ class ActionResult {
 
   Map<String, dynamic> toJson() => {
         'ok': ok,
+        'accepted': accepted,
+        'entryId': entryId,
         'message': message,
         'error': error,
         'taskId': taskId,

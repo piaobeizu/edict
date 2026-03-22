@@ -18,7 +18,7 @@
 
 | 服务 | 技术 | 端口 | 说明 |
 |------|------|------|------|
-| frontend | Nginx + Flutter/React | 8002 | 看板前端 |
+| frontend | Nginx + Flutter Web | 8002 | 看板前端（唯一维护版本） |
 | backend | FastAPI + Uvicorn | 8001 | REST API + WebSocket |
 | orchestrator | Python Worker | — | 任务编排 |
 | dispatcher | Python Worker | — | Agent 派发 |
@@ -44,6 +44,8 @@ docker compose restart backend
 # 停止全部服务
 docker compose down
 ```
+
+> 维护策略：Web 前端仅维护 `flutter_app/`；`frontend/`（React）已归档，不再作为主线维护目标。
 
 ---
 

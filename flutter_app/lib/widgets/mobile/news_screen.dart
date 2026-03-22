@@ -3,15 +3,95 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../models/models.dart';
+import '../../providers/api_provider.dart';
 import '../../providers/morning_provider.dart';
+import 'mobile_tokens.dart';
 import 'mobile_ui_kit.dart';
 import 'mobile_surface.dart';
 
-class MobileNewsScreen extends ConsumerWidget {
+class MobileNewsScreen extends ConsumerStatefulWidget {
   const MobileNewsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MobileNewsScreen> createState() => _MobileNewsScreenState();
+}
+
+class _MobileNewsScreenState extends ConsumerState<MobileNewsScreen> {
+  bool _pushing = false;
+
+  Map<String, String> _toStringParams(Map<String, dynamic> raw) {
+    final out = <String, String>{};
+    for (final entry in raw.entries) {
+      final value = entry.value;
+      if (value == null) continue;
+      out[entry.key] = value.toString();
+    }
+    return out;
+  }
+
+  Future<void> _pushMorningToFeishu() async {
+    if (_pushing) {
+      return;
+    }
+    setState(() => _pushing = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(morningBriefProvider.notifier).triggerRefreshAndPoll();
+      final api = ref.read(apiClientProvider);
+      final channelsResult = await api.notifyChannels();
+      final channels = channelsResult.channels ?? const <ChannelMeta>[];
+      ChannelMeta? feishu;
+      for (final channel in channels) {
+        if (!channel.enabled) continue;
+        if (!channel.channelId.toLowerCase().contains('feishu')) continue;
+        feishu = channel;
+        break;
+      }
+
+      if (feishu == null) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('晨报已刷新，未检测到已启用的飞书通知渠道'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+
+      final testResult =
+          await api.testNotifyChannel(feishu.channelId, _toStringParams(feishu.params));
+      if (testResult.ok) {
+        messenger.showSnackBar(
+          const SnackBar(
+            content: Text('已刷新晨报并推送飞书测试消息'),
+            behavior: SnackBarBehavior.floating,
+            duration: Duration(milliseconds: 1400),
+          ),
+        );
+      } else {
+        messenger.showSnackBar(
+          SnackBar(
+            content: Text('晨报已刷新，飞书推送失败：${testResult.error ?? testResult.message ?? '未知错误'}'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(
+          content: Text('推送失败：$e'),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } finally {
+      if (mounted) {
+        setState(() => _pushing = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final morningAsync = ref.watch(morningBriefProvider);
     final items = <_NewsUiItem>[
       for (final entry in (morningAsync.valueOrNull?.categories ??
@@ -31,23 +111,17 @@ class MobileNewsScreen extends ConsumerWidget {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAF9),
       body: MobileImmersiveBackground(
-        child: SafeArea(
-          bottom: false,
-          child: ListView(
-            padding: MobileImmersiveBackground.pagePadding,
+        child: ListView(
+            padding: MobileUiTokens.pagePadding,
             children: [
               MobileSectionTitle(
                 title: '🌤️ 要闻晨览',
                 trailing: Text(
                   '$dateText · 晴',
-                  style: const TextStyle(
-                    fontSize: 12,
-                    color: Color(0xFF78716C),
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: MobileUiTokens.trailingText,
                 ),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: MobileUiTokens.gap10),
               if (morningAsync.isLoading && items.isEmpty)
                 const Padding(
                   padding: EdgeInsets.symmetric(vertical: 40),
@@ -66,7 +140,7 @@ class MobileNewsScreen extends ConsumerWidget {
               else
                 ...items.take(12).map((item) {
                   return Container(
-                    margin: const EdgeInsets.only(bottom: 10),
+                    margin: const EdgeInsets.only(bottom: MobileUiTokens.gap10),
                     child: MobileSurfaceCard(
                       padding: const EdgeInsets.all(12),
                       child: Column(
@@ -82,35 +156,27 @@ class MobileNewsScreen extends ConsumerWidget {
                               const Spacer(),
                               Text(
                                 item.source,
-                                style: const TextStyle(
-                                  fontSize: 12,
-                                  color: Color(0xFF78716C),
-                                ),
+                                style: MobileUiTokens.trailingText
+                                    .copyWith(fontWeight: FontWeight.w500),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const SizedBox(height: MobileUiTokens.gap8),
                           Text(
                             item.title,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              height: 1.35,
-                              color: Color(0xFF1C1917),
-                              fontWeight: FontWeight.w800,
-                            ),
+                            style:
+                                MobileUiTokens.cardTitle.copyWith(height: 1.35),
                           ),
                           if (item.body.isNotEmpty) ...[
-                            const SizedBox(height: 8),
+                            const SizedBox(height: MobileUiTokens.gap8),
                             Text(
                               item.body,
-                              style: const TextStyle(
+                              style: MobileUiTokens.bodyMuted.copyWith(
                                 fontSize: 13,
-                                height: 1.5,
-                                color: Color(0xFF78716C),
                               ),
                             ),
                           ],
-                          const SizedBox(height: 8),
+                          const SizedBox(height: MobileUiTokens.gap8),
                           InkWell(
                             onTap: () async {
                               final uri = Uri.tryParse(item.link);
@@ -139,21 +205,13 @@ class MobileNewsScreen extends ConsumerWidget {
               SizedBox(
                 width: double.infinity,
                 child: MobilePrimaryButton(
-                  label: '推送到飞书',
-                  onPressed: () {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('已触发推送（演示）'),
-                        behavior: SnackBarBehavior.floating,
-                        duration: Duration(milliseconds: 1200),
-                      ),
-                    );
-                  },
+                  label: _pushing ? '推送中...' : '推送到飞书',
+                  onPressed: _pushing ? null : _pushMorningToFeishu,
                 ),
               ),
+              const SizedBox(height: 6),
             ],
           ),
-        ),
       ),
     );
   }

@@ -346,6 +346,12 @@ class Task {
   final Map<String, dynamic>? sourceMeta;
   final List<ActivityEntry>? activity;
   final String? prevState;
+  final String workflowId;
+  final int? projectionVersion;
+  final String? currentRevisionId;
+  final String? currentAssemblyId;
+  final int pendingReviewCount;
+  final int runningNodeCount;
 
   const Task({
     required this.id,
@@ -367,6 +373,12 @@ class Task {
     this.sourceMeta,
     this.activity,
     this.prevState,
+    this.workflowId = '',
+    this.projectionVersion,
+    this.currentRevisionId,
+    this.currentAssemblyId,
+    this.pendingReviewCount = 0,
+    this.runningNodeCount = 0,
   });
 
   factory Task.fromJson(Map<String, dynamic> json) {
@@ -383,6 +395,16 @@ class Task {
     }
 
     final hb = json['heartbeat'];
+    final sourceMeta = json['sourceMeta'] is Map
+        ? safeMap(json['sourceMeta'])
+        : json['source_meta'] is Map
+            ? safeMap(json['source_meta'])
+            : <String, dynamic>{};
+    final workflowId = (json['workflowId'] ??
+            json['workflow_id'] ??
+            sourceMeta['workflowId'] ??
+            sourceMeta['workflow_id'])
+        ?.toString();
     return Task(
       id: json['id']?.toString() ?? '',
       title: json['title']?.toString() ?? '',
@@ -408,15 +430,39 @@ class Task {
               json['createdAt'] ??
               json['created_at'])
           ?.toString(),
-      sourceMeta: json['sourceMeta'] is Map
-          ? safeMap(json['sourceMeta'])
-          : json['source_meta'] is Map
-              ? safeMap(json['source_meta'])
-              : null,
+      sourceMeta: sourceMeta.isEmpty ? null : sourceMeta,
       activity: null, // Activity is loaded separately via taskActivity API
       prevState:
           (json['_prev_state'] ?? json['prevState'] ?? json['prev_state'])
               ?.toString(),
+      workflowId: workflowId ?? '',
+      projectionVersion: ((json['projectionVersion'] ??
+              json['projection_version'] ??
+              sourceMeta['projectionVersion'] ??
+              sourceMeta['projection_version']) as num?)
+          ?.toInt(),
+      currentRevisionId: (json['currentRevisionId'] ??
+              json['current_revision_id'] ??
+              sourceMeta['currentRevisionId'] ??
+              sourceMeta['current_revision_id'])
+          ?.toString(),
+      currentAssemblyId: (json['currentAssemblyId'] ??
+              json['current_assembly_id'] ??
+              sourceMeta['currentAssemblyId'] ??
+              sourceMeta['current_assembly_id'])
+          ?.toString(),
+      pendingReviewCount: ((json['pendingReviewCount'] ??
+                  json['pending_review_count'] ??
+                  sourceMeta['pendingReviewCount'] ??
+                  sourceMeta['pending_review_count']) as num?)
+              ?.toInt() ??
+          0,
+      runningNodeCount: ((json['runningNodeCount'] ??
+                  json['running_node_count'] ??
+                  sourceMeta['runningNodeCount'] ??
+                  sourceMeta['running_node_count']) as num?)
+              ?.toInt() ??
+          0,
     );
   }
 
@@ -441,10 +487,31 @@ class Task {
       'sourceMeta': sourceMeta,
       'activity': activity?.map((e) => e.toJson()).toList(),
       '_prev_state': prevState,
+      'workflowId': workflowId,
+      'projectionVersion': projectionVersion,
+      'currentRevisionId': currentRevisionId,
+      'currentAssemblyId': currentAssemblyId,
+      'pendingReviewCount': pendingReviewCount,
+      'runningNodeCount': runningNodeCount,
     };
   }
 
   @override
   String toString() =>
       'Task(id: $id, title: $title, state: $state, archived: $archived)';
+}
+
+bool isWorkflowV2Task(Task task) {
+  return taskWorkflowId(task).isNotEmpty;
+}
+
+String taskWorkflowId(Task task) {
+  final topLevel = task.workflowId.trim();
+  if (topLevel.isNotEmpty) {
+    return topLevel;
+  }
+  final sourceMeta = task.sourceMeta ?? const <String, dynamic>{};
+  final fromMeta =
+      (sourceMeta['workflowId'] ?? sourceMeta['workflow_id'])?.toString();
+  return fromMeta?.trim() ?? '';
 }

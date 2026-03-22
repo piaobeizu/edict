@@ -5,6 +5,8 @@
 
 const API_BASE = import.meta.env.VITE_API_URL || '';
 
+const WORKFLOW_EVENT_START_PLANNING = 'workflow.v2.command.start_planning';
+
 // ── 通用请求 ──
 
 async function fetchJ<T>(url: string): Promise<T> {
@@ -109,6 +111,28 @@ export const api = {
   createTask: (data: CreateTaskPayload) =>
     postJ<ActionResult & { taskId?: string }>(`${API_BASE}/api/create-task`, data),
 
+  // Workflow v2 command bus
+  submitWorkflowCommand: (
+    workflowId: string,
+    eventType: string,
+    payload?: Record<string, unknown>,
+    producer = 'frontend',
+  ) =>
+    postJ<ActionResult & { accepted?: boolean; entryId?: string }>(
+      `${API_BASE}/api/workflows/${encodeURIComponent(workflowId)}/commands`,
+      {
+        eventType,
+        producer,
+        ...(payload ? { payload } : {}),
+      }
+    ),
+  startPlanningWorkflow: (workflowId: string, content = '') =>
+    api.submitWorkflowCommand(
+      workflowId,
+      WORKFLOW_EVENT_START_PLANNING,
+      content ? { content } : undefined,
+    ),
+
   artifactDownloadUrl: (path: string) =>
     `${API_BASE}/api/files/download?path=${encodeURIComponent(path)}`,
 
@@ -169,6 +193,13 @@ export interface Task {
   updatedAt?: string;
   sourceMeta?: Record<string, unknown>;
   activity?: ActivityEntry[];
+  workflowId?: string;
+  workflowType?: string;
+  projectionVersion?: number;
+  currentRevisionId?: string;
+  currentAssemblyId?: string;
+  pendingReviewCount?: number;
+  runningNodeCount?: number;
   _prev_state?: string;
 }
 

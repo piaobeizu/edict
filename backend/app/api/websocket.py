@@ -124,8 +124,12 @@ async def task_websocket(ws: WebSocket, task_id: str):
                     if isinstance(payload, str):
                         payload = json.loads(payload)
 
-                    # 只转发与此任务相关的事件
-                    if payload.get("task_id") == task_id:
+                    # 转发与此任务相关的事件（兼容 workflow v2 的 workflow_id 和 trace_id）
+                    event_trace = str(event_data.get("trace_id") or "")
+                    event_workflow = str(payload.get("workflow_id") or "")
+                    if (payload.get("task_id") == task_id
+                            or event_trace == task_id
+                            or event_workflow == task_id):
                         topic = message["channel"].replace("edict:pubsub:", "")
                         await ws.send_json({
                             "type": "event",

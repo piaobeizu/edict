@@ -22,7 +22,8 @@ from .config import get_settings
 from .services.event_bus import get_event_bus
 from .services.openclaw_runtime import sync_workspace_support_files
 from .services.structured_log import setup_structured_logging
-from .api import tasks, agents, events, admin, websocket, insights, metrics, compat, files, notify, dashboard
+from .workers.inprocess_workflow_workers import InProcessWorkflowWorkers
+from .api import tasks, agents, events, admin, websocket, insights, metrics, compat, files, notify, dashboard, workflows
 from .services.task_service import TaskService
 from .api import legacy
 
@@ -39,6 +40,11 @@ async def lifespan(app: FastAPI):
     # 连接 Event Bus
     bus = await get_event_bus()
     log.info("✅ Event Bus connected")
+    workflow_workers = None
+    if settings.workflow_workers_inprocess:
+        workflow_workers = InProcessWorkflowWorkers()
+        await workflow_workers.start()
+        log.info("✅ In-process workflow workers started")
 
     try:
         synced = sync_workspace_support_files()
@@ -49,6 +55,8 @@ async def lifespan(app: FastAPI):
     yield
 
     # 清理
+    if workflow_workers is not None:
+        await workflow_workers.stop()
     await bus.close()
     log.info("Edict Backend shutdown complete")
 
@@ -72,6 +80,7 @@ app.add_middleware(
 
 # 注册路由
 app.include_router(tasks.router, prefix="/api/tasks", tags=["tasks"])
+app.include_router(workflows.router, prefix="/api/workflows", tags=["workflows"])
 app.include_router(agents.router, prefix="/api/agents", tags=["agents"])
 app.include_router(events.router, prefix="/api/events", tags=["events"])
 app.include_router(admin.router, prefix="/api/admin", tags=["admin"])

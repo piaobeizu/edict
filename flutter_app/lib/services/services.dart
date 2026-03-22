@@ -1,2 +1,2 @@
 export 'api_client.dart';
-export 'websocket_service.dart';
+export 'workflow_event_stream_service.dart';

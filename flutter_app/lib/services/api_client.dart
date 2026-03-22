@@ -17,6 +17,26 @@ class ApiException implements Exception {
 }
 
 class ApiClient {
+  static const String eventStartPlanning = 'workflow.v2.command.start_planning';
+  static const String eventSubmitPlan = 'workflow.v2.command.submit_plan';
+  static const String eventApprovePlan = 'workflow.v2.command.approve_plan';
+  static const String eventRejectPlan = 'workflow.v2.command.reject_plan';
+  static const String eventStopWorkflow = 'workflow.v2.command.stop';
+  static const String eventCancelWorkflow = 'workflow.v2.command.cancel';
+  static const String eventResumeWorkflow = 'workflow.v2.command.resume';
+  static const String eventNodeProgress = 'workflow.v2.command.node_progress';
+  static const String eventCompleteCandidate =
+      'workflow.v2.command.complete_candidate';
+  static const String eventSelectCandidate =
+      'workflow.v2.command.select_candidate';
+  static const String eventRegenerateNode =
+      'workflow.v2.command.regenerate_node';
+  static const String eventApproveAssembly =
+      'workflow.v2.command.approve_assembly';
+  static const String eventRejectAssembly =
+      'workflow.v2.command.reject_assembly';
+  static const String eventRollbackWorkflow = 'workflow.v2.command.rollback';
+
   ApiClient({Dio? dio, String? baseUrl})
       : _dio = dio ??
             Dio(
@@ -45,6 +65,19 @@ class ApiClient {
   }
 
   String get baseUrl => _dio.options.baseUrl;
+
+  String resolveUrl(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+    final base = _dio.options.baseUrl;
+    if (base.isEmpty) {
+      return path;
+    }
+    final normalized = path.startsWith('/') ? path.substring(1) : path;
+    final baseUri = Uri.parse(base.endsWith('/') ? base : '$base/');
+    return baseUri.resolve(normalized).toString();
+  }
 
   Future<LiveStatus> liveStatus() =>
       _getModel('/api/tasks/live-status', LiveStatus.fromJson);
@@ -250,6 +283,347 @@ class ApiClient {
   Future<ActionResult> createTask(CreateTaskPayload data) =>
       _postAction('/api/create-task', data.toJson());
 
+  Future<WorkflowCreateResult> createWorkflow({
+    required String title,
+    String goal = '',
+    String workflowType = 'generic',
+    String owner = '',
+    Map<String, dynamic>? meta,
+  }) async {
+    try {
+      final response = await _dio.post<dynamic>(
+        '/api/workflows',
+        data: <String, dynamic>{
+          'title': title,
+          'goal': goal,
+          'workflowType': workflowType,
+          'owner': owner,
+          if (meta != null) 'meta': meta,
+        },
+      );
+      return WorkflowCreateResult.fromJson(_asMap(response.data));
+    } catch (e) {
+      return WorkflowCreateResult(
+        ok: false,
+        workflowId: '',
+        taskId: '',
+        state: '',
+        error: _extractErrorMessage(e),
+      );
+    }
+  }
+
+  Future<Workflow> workflowSummary(String workflowId) => _getModel(
+        '/api/workflows/${Uri.encodeComponent(workflowId)}',
+        (map) => Workflow.fromJson(
+          (map['workflow'] is Map<String, dynamic>)
+              ? map['workflow'] as Map<String, dynamic>
+              : <String, dynamic>{},
+        ),
+      );
+
+  Future<WorkflowGraph> workflowGraph(String workflowId) => _getModel(
+        '/api/workflows/${Uri.encodeComponent(workflowId)}/graph',
+        WorkflowGraph.fromJson,
+      );
+
+  Future<List<WorkflowTimelineEvent>> workflowTimeline(String workflowId) =>
+      _getModel(
+        '/api/workflows/${Uri.encodeComponent(workflowId)}/timeline',
+        _parseWorkflowTimeline,
+      );
+
+  Future<WorkflowSyncSnapshot> workflowSyncSnapshot(String workflowId) =>
+      _getModel(
+        '/api/workflows/${Uri.encodeComponent(workflowId)}/sync-snapshot',
+        (map) {
+          final workflowMap = (map['workflow'] is Map<String, dynamic>)
+              ? map['workflow'] as Map<String, dynamic>
+              : <String, dynamic>{};
+          final graphMap = <String, dynamic>{
+            'workflow': workflowMap,
+            'revisions': map['revisions'] ?? const <dynamic>[],
+            'nodes': map['nodes'] ?? const <dynamic>[],
+            'candidates': map['candidates'] ?? const <dynamic>[],
+            'decisions': map['decisions'] ?? const <dynamic>[],
+            'assemblies': map['assemblies'] ?? const <dynamic>[],
+          };
+          return WorkflowSyncSnapshot(
+            workflow: Workflow.fromJson(workflowMap),
+            graph: WorkflowGraph.fromJson(graphMap),
+            timeline: _parseWorkflowTimeline(map),
+          );
+        },
+      );
+
+  Future<ActionResult> submitWorkflowCommand(
+    String workflowId,
+    String eventType, {
+    Map<String, dynamic>? payload,
+    String producer = 'flutter',
+  }) =>
+      _postAction(
+        '/api/workflows/${Uri.encodeComponent(workflowId)}/commands',
+        <String, dynamic>{
+          'eventType': eventType,
+          'producer': producer,
+          if (payload != null) 'payload': payload,
+        },
+      );
+
+  Future<List<WorkflowCandidate>> workflowCandidates(
+    String workflowId, {
+    String? nodeId,
+  }) =>
+      _getModel(
+        '/api/workflows/${Uri.encodeComponent(workflowId)}/candidates'
+        '${(nodeId != null && nodeId.isNotEmpty) ? '?node_id=${Uri.encodeQueryComponent(nodeId)}' : ''}',
+        (map) {
+          final raw = map['candidates'] as List<dynamic>? ?? const <dynamic>[];
+          return raw
+              .whereType<Map>()
+              .map((e) =>
+                  WorkflowCandidate.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        },
+      );
+
+  Future<List<WorkflowAssembly>> workflowAssemblies(String workflowId) =>
+      _getModel(
+        '/api/workflows/${Uri.encodeComponent(workflowId)}/assemblies',
+        (map) {
+          final raw = map['assemblies'] as List<dynamic>? ?? const <dynamic>[];
+          return raw
+              .whereType<Map>()
+              .map((e) =>
+                  WorkflowAssembly.fromJson(Map<String, dynamic>.from(e)))
+              .toList();
+        },
+      );
+
+  Future<ActionResult> selectWorkflowCandidate(
+    String workflowId, {
+    required String nodeId,
+    required String candidateId,
+    String actor = 'zhongshu',
+    String comment = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventSelectCandidate,
+        payload: <String, dynamic>{
+          'node_id': nodeId,
+          'candidate_id': candidateId,
+          'actor': actor,
+          if (comment.isNotEmpty) 'comment': comment,
+        },
+      );
+
+  Future<ActionResult> regenerateWorkflowNodeCandidate(
+    String workflowId, {
+    required String nodeId,
+    String actor = 'zhongshu',
+    String comment = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventRegenerateNode,
+        payload: <String, dynamic>{
+          'node_id': nodeId,
+          'actor': actor,
+          if (comment.isNotEmpty) 'comment': comment,
+        },
+      );
+
+  Future<ActionResult> approveWorkflowAssembly(
+    String workflowId, {
+    required String assemblyId,
+    String summary = '',
+    String actor = 'zhongshu',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventApproveAssembly,
+        payload: <String, dynamic>{
+          'assembly_id': assemblyId,
+          if (summary.isNotEmpty) 'summary': summary,
+          'actor': actor,
+        },
+      );
+
+  Future<ActionResult> rejectWorkflowAssembly(
+    String workflowId, {
+    required String assemblyId,
+    String actor = 'zhongshu',
+    String reason = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventRejectAssembly,
+        payload: <String, dynamic>{
+          'assembly_id': assemblyId,
+          'actor': actor,
+          if (reason.isNotEmpty) 'reason': reason,
+        },
+      );
+
+  Future<ActionResult> rollbackWorkflow(
+    String workflowId, {
+    String actor = 'zhongshu',
+    String reason = '',
+    String? targetRevisionId,
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventRollbackWorkflow,
+        payload: <String, dynamic>{
+          'actor': actor,
+          if (reason.isNotEmpty) 'reason': reason,
+          if (targetRevisionId != null && targetRevisionId.isNotEmpty)
+            'target_revision_id': targetRevisionId,
+        },
+      );
+
+  /// 推进节点状态（如 pending→running），触发 worker dispatch
+  Future<ActionResult> updateNodeProgress(
+    String workflowId, {
+    required String nodeId,
+    required String toState,
+    String reason = '',
+    String executorId = '',
+    String message = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventNodeProgress,
+        payload: <String, dynamic>{
+          'node_id': nodeId,
+          'to_state': toState,
+          if (reason.isNotEmpty) 'reason': reason,
+          if (executorId.isNotEmpty) 'executor_id': executorId,
+          if (message.isNotEmpty) 'message': message,
+        },
+      );
+
+  /// 手动完成候选（标记 produced/failed 等）
+  Future<ActionResult> completeWorkflowCandidate(
+    String workflowId, {
+    required String candidateId,
+    required String status,
+    String summary = '',
+    double? score,
+    Map<String, dynamic>? metrics,
+    List<Map<String, dynamic>>? artifacts,
+    Map<String, dynamic>? meta,
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventCompleteCandidate,
+        payload: <String, dynamic>{
+          'candidate_id': candidateId,
+          'status': status,
+          if (summary.isNotEmpty) 'summary': summary,
+          if (score != null) 'score': score,
+          if (metrics != null) 'metrics': metrics,
+          if (artifacts != null) 'artifacts': artifacts,
+          if (meta != null) 'meta': meta,
+        },
+      );
+
+  Future<ActionResult> startPlanningWorkflow(
+    String workflowId, {
+    String content = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventStartPlanning,
+        payload: <String, dynamic>{if (content.isNotEmpty) 'content': content},
+      );
+
+  Future<ActionResult> startPlanning(
+    String workflowId, {
+    String content = '',
+  }) =>
+      startPlanningWorkflow(workflowId, content: content);
+
+  Future<ActionResult> submitPlanWorkflow(
+    String workflowId, {
+    String comment = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventSubmitPlan,
+        payload: <String, dynamic>{if (comment.isNotEmpty) 'comment': comment},
+      );
+
+  Future<ActionResult> submitPlan(
+    String workflowId, {
+    String comment = '',
+  }) =>
+      submitPlanWorkflow(workflowId, comment: comment);
+
+  Future<ActionResult> approveWorkflowRevision(
+    String workflowId, {
+    required String revisionId,
+    String actor = 'zhongshu',
+    String comment = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventApprovePlan,
+        payload: <String, dynamic>{
+          'revision_id': revisionId,
+          'actor': actor,
+          if (comment.isNotEmpty) 'comment': comment,
+        },
+      );
+
+  Future<ActionResult> rejectWorkflowRevision(
+    String workflowId, {
+    required String revisionId,
+    String actor = 'zhongshu',
+    String comment = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventRejectPlan,
+        payload: <String, dynamic>{
+          'revision_id': revisionId,
+          'actor': actor,
+          if (comment.isNotEmpty) 'comment': comment,
+        },
+      );
+
+  Future<ActionResult> stopWorkflow(
+    String workflowId, {
+    String reason = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventStopWorkflow,
+        payload: <String, dynamic>{if (reason.isNotEmpty) 'reason': reason},
+      );
+
+  Future<ActionResult> cancelWorkflow(
+    String workflowId, {
+    String reason = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventCancelWorkflow,
+        payload: <String, dynamic>{if (reason.isNotEmpty) 'reason': reason},
+      );
+
+  Future<ActionResult> resumeWorkflow(
+    String workflowId, {
+    String reason = '',
+  }) =>
+      submitWorkflowCommand(
+        workflowId,
+        eventResumeWorkflow,
+        payload: <String, dynamic>{if (reason.isNotEmpty) 'reason': reason},
+      );
+
   Future<ActionResult> saveNotifyConfig(
     Map<String, dynamic> config,
   ) =>
@@ -295,6 +669,24 @@ class ApiClient {
   ActionResult _errorActionResult(String message) => ActionResult.fromJson(
       <String, dynamic>{'ok': false, 'error': message, 'message': message});
 
+  List<WorkflowTimelineEvent> _parseWorkflowTimeline(Map<String, dynamic> map) {
+    final timelineRaw = map['timeline'] as List<dynamic>? ?? const <dynamic>[];
+    final parsed = timelineRaw
+        .whereType<Map>()
+        .map(
+          (e) => WorkflowTimelineEvent.fromJson(Map<String, dynamic>.from(e)),
+        )
+        .toList();
+
+    final dedup = <String, WorkflowTimelineEvent>{};
+    for (final item in parsed) {
+      dedup[item.timelineKey] = item;
+    }
+    final merged = dedup.values.toList();
+    merged.sort((a, b) => a.at.compareTo(b.at));
+    return merged;
+  }
+
   Map<String, dynamic> _asMap(dynamic data) {
     if (data is Map<String, dynamic>) {
       return data;
@@ -327,15 +719,50 @@ class ApiClient {
       final statusCode = error.response?.statusCode;
       final responseData = error.response?.data;
 
+      String? serverMessage;
       if (responseData is Map<String, dynamic>) {
-        final message = responseData['error'] ?? responseData['message'];
-        if (message is String && message.isNotEmpty) {
-          return message;
+        // 优先取 detail（FastAPI HTTPException 默认字段），再取 error / message
+        final detail = responseData['detail'];
+        if (detail is List) {
+          // 422 校验错误：detail 是 [{loc, msg, type}, ...]，提取首条 msg
+          final msgs = detail
+              .whereType<Map>()
+              .map((e) => e['msg']?.toString() ?? '')
+              .where((m) => m.isNotEmpty)
+              .take(3)
+              .toList();
+          serverMessage =
+              msgs.isNotEmpty ? '参数校验失败：${msgs.join('；')}' : detail.toString();
+        } else {
+          serverMessage =
+              (detail ?? responseData['error'] ?? responseData['message'])
+                  ?.toString();
         }
+      } else if (responseData is Map) {
+        try {
+          final m = Map<String, dynamic>.from(responseData);
+          serverMessage =
+              (m['detail'] ?? m['error'] ?? m['message'])?.toString();
+        } catch (_) {}
+      }
+
+      if (serverMessage != null && serverMessage.isNotEmpty) {
+        // 403 权限失败特殊提示
+        if (statusCode == 403) {
+          return '当前角色无权限执行该动作：$serverMessage';
+        }
+        return serverMessage;
       }
 
       if (responseData is String && responseData.isNotEmpty) {
+        if (statusCode == 403) {
+          return '当前角色无权限执行该动作：$responseData';
+        }
         return responseData;
+      }
+
+      if (statusCode == 403) {
+        return '当前角色无权限执行该动作（HTTP 403）';
       }
 
       if (statusCode != null) {

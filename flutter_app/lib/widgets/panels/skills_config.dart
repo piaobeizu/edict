@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../core/clipboard.dart';
 import '../../core/theme.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
@@ -341,8 +341,9 @@ class _SkillsConfigPanelState extends ConsumerState<SkillsConfigPanel>
       final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
       if (ok) return;
     }
-    await Clipboard.setData(ClipboardData(text: sourceUrl));
-    if (mounted) {
+    if (!mounted) return;
+    final copied = await copyTextToClipboard(context, sourceUrl);
+    if (mounted && copied) {
       _toastOk('链接已复制：$sourceUrl');
     }
   }

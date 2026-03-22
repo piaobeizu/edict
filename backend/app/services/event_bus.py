@@ -125,7 +125,13 @@ class EventBus:
 
         # 同时发布到 Pub/Sub 频道（供 WebSocket 实时推送）— best-effort
         try:
-            await self.redis.publish(f"edict:pubsub:{topic}", json.dumps(event, ensure_ascii=False))
+            pubsub_event = dict(event)
+            # Keep stream entry id for frontend pending-mutation attribution.
+            pubsub_event["stream_entry_id"] = entry_id
+            await self.redis.publish(
+                f"edict:pubsub:{topic}",
+                json.dumps(pubsub_event, ensure_ascii=False),
+            )
         except Exception as e:
             log.warning("Pub/Sub fanout failed (stream XADD succeeded): %s", e)
 

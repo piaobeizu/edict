@@ -30,7 +30,7 @@ cd edict
 docker compose up -d --build
 ```
 
-Compose 会自动拉起 backend / worker / postgres / redis / frontend。
+Compose 会自动拉起 backend / worker / postgres / redis / Flutter Web frontend（`flutter_app/`）。
 - ✅ 重启 Gateway 使配置生效
 
 > 本地开发可选：如需直接调试内核包，可在仓库根目录执行 `pip install -e ./kernel`。
@@ -59,7 +59,7 @@ docker compose up -d --build
 open http://127.0.0.1:8002
 ```
 
-> 💡 `docker compose ps` 可查看 backend/frontend/orchestrator/dispatcher 状态。
+> 💡 `docker compose ps` 可查看 backend/frontend/orchestrator/dispatcher 状态（其中 `frontend` 为 Flutter Web 服务）。
 
 如果你想先理解目录分层和代码职责，再继续往下看：
 

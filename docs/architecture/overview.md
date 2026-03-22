@@ -167,7 +167,7 @@ _STATE_FLOW = {
 | 层级 | 技术 |
 |------|------|
 | 后端 | Python 3.12 · FastAPI · Uvicorn · SQLAlchemy (async) · asyncpg · Alembic |
-| 前端 | Flutter Web（主前端，端口 8002）/ React 18 + TypeScript + Vite（备用） |
+| 前端 | Flutter Web（唯一维护的 Web 前端，端口 8002） |
 | 内核 | 独立 Python 包 `kernel`：状态机 · 工作流引擎 · 端口/适配器 |
 | 数据库 | PostgreSQL 16 · Redis 7 |
 | Agent 运行时 | OpenClaw CLI |
@@ -229,8 +229,8 @@ _STATE_FLOW = {
 edict/
 ├── backend/         后端服务（API · Worker · ORM · 迁移）
 ├── kernel/          工作流内核（状态机 · 引擎 · 端口 · 适配器）
-├── frontend/        React 看板前端
-├── flutter_app/     Flutter Web 主前端
+├── flutter_app/     Flutter Web 主前端（维护中）
+├── frontend/        React 看板前端（归档）
 ├── agents/          12 个 Agent 的 SOUL 配置
 ├── tests/           仓库级测试
 ├── scripts/         运维脚本
@@ -239,7 +239,8 @@ edict/
 
 - **`kernel/`**：可安装 Python 包，包含状态机、工作流引擎和抽象端口定义
 - **`backend/`**：应用层，通过适配器对接 kernel 的端口到 PostgreSQL / Redis / OpenClaw
-- **`frontend/`**：React 看板，通过 HTTP / WebSocket 调用 backend
+- **`flutter_app/`**：Flutter Web 主看板，通过 HTTP / WebSocket 调用 backend
+- **`frontend/`**：React 旧版看板，已归档，不再作为主线维护目标
 
 > 专题文档：[代码结构说明](code-structure.md) 详细解释三层协作关系。
 

@@ -89,6 +89,11 @@
       transition: opacity .35s ease, transform .35s cubic-bezier(.2,.8,.2,1);
     }
 
+    #page-templates {
+      padding-left: 12px;
+      padding-right: 12px;
+    }
+
     .page.active {
       opacity: 1;
       transform: translateY(0) scale(1);
@@ -426,7 +431,7 @@
     .tab-bar {
       margin-top: 10px;
       display: grid;
-      grid-template-columns: repeat(4, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       background: #efeeff;
       border-radius: 14px;
       padding: 4px;
@@ -463,7 +468,7 @@
 
     .pipeline {
       display: grid;
-      grid-template-columns: repeat(7, 1fr);
+      grid-template-columns: repeat(5, 1fr);
       gap: 2px;
       margin-top: 10px;
       font-size: 10px;
@@ -626,18 +631,24 @@
 
     .tpl-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(2, minmax(0, 0.9fr));
+      justify-content: space-between;
       gap: 10px;
       margin-top: 10px;
     }
 
     .tpl-card {
       border: 1px solid var(--border);
-      border-radius: 16px;
-      background: #fff;
-      padding: 12px;
+      border-radius: 18px;
+      background: linear-gradient(165deg, #ffffff 0%, #fcfcff 100%);
+      padding: 14px;
       box-shadow: var(--shadow-card);
       transition: all .24s ease;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 100%;
+      margin: 0;
     }
     .tpl-card.selected {
       border-color: #6366f1;
@@ -645,19 +656,80 @@
       background: #f8f8ff;
     }
 
+    .tpl-icon {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      display: grid;
+      place-items: center;
+      font-size: 18px;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border: 1px solid #dbe4ff;
+      box-shadow: inset 0 -2px 4px rgba(99, 102, 241, 0.08);
+    }
+
     .tpl-card h4 {
-      margin: 6px 0 6px;
-      font-size: 15px;
+      margin: 0;
+      font-size: 16px;
+      line-height: 1.25;
+      letter-spacing: .2px;
+      flex: 1;
+    }
+
+    .tpl-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .tpl-desc {
+      margin: 0;
+      min-height: 40px;
+      font-size: 12px;
+      color: #57534e;
+      line-height: 1.45;
+    }
+
+    .tpl-foot {
+      margin-top: auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
     }
 
     .tpl-meta {
       font-size: 11px;
       color: #57534e;
       display: inline-block;
-      background: #f5f5f4;
+      background: #f4f4f5;
       border-radius: 999px;
-      padding: 4px 8px;
-      margin-bottom: 8px;
+      padding: 5px 8px;
+      margin: 0;
+      min-width: 0;
+      max-width: 100%;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tpl-card .mini-btn {
+      margin-top: 0;
+      width: fit-content;
+      white-space: nowrap;
+      padding: 6px 10px;
+      justify-self: end;
+      background: linear-gradient(135deg, #eef2ff, #e0e7ff);
+      border: 1px solid #d6ddff;
+      color: #3730a3;
+      box-shadow: 0 4px 10px rgba(67, 56, 202, 0.12);
+    }
+
+    .tpl-card:hover .mini-btn {
+      background: linear-gradient(135deg, #6366F1, #4338CA);
+      border-color: transparent;
+      color: #fff;
     }
 
     .news-card {
@@ -885,12 +957,6 @@
           </article>
         </div>
 
-        <div class="section-title">⚡ 快捷入口</div>
-        <div class="quick-actions">
-          <button class="qa-card pressable">📋<br/>新建任务</button>
-          <button class="qa-card pressable">📊<br/>查看模板</button>
-          <button class="qa-card pressable">🌅<br/>今日要闻</button>
-        </div>
       </section>
 
       <section class="page" id="page-tasks">
@@ -906,180 +972,224 @@
 
         <div class="chip-row" style="margin-top:10px">
           <span class="chip indigo-grad">全部状态</span>
-          <span class="chip neutral-bg">分拣中</span>
-          <span class="chip neutral-bg">规划中</span>
-          <span class="chip neutral-bg">审议中</span>
+          <span class="chip neutral-bg">草拟中</span>
+          <span class="chip neutral-bg">方案中</span>
+          <span class="chip neutral-bg">待审批</span>
           <span class="chip neutral-bg">执行中</span>
-          <span class="chip neutral-bg">审查中</span>
+          <span class="chip neutral-bg">汇总中</span>
           <span class="chip neutral-bg">已完成</span>
         </div>
 
         <div id="taskList">
-          <article class="task-card pressable">
+          <article class="task-card pressable" data-detail="workflow" data-workflow-id="wf_tofu_001">
             <div class="accent" style="position:absolute;left:0;top:0;bottom:0;background:#6366F1;width:4px"></div>
             <div class="task-body">
               <div class="row between">
-                <strong>API设计 · 统一鉴权2.0</strong>
-                <span class="chip indigo-grad">规划中</span>
+                <strong>豆腐工艺视频 · 第一版方案</strong>
+                <span class="chip indigo-grad">方案中</span>
               </div>
-              <div style="margin-top:8px"><span class="dept-tag">📝 中书省 · 制诰AI</span></div>
-              <div class="small muted" style="margin-top:8px">当前动作：整合历史 RFC 与门下省驳议意见，生成最终折中方案…</div>
+              <div style="margin-top:8px"><span class="dept-tag">🧠 Workflow V2 · summary projection</span></div>
+              <div class="small muted" style="margin-top:8px">当前摘要：已生成 2 版方案，当前第 2 版等待御览；步骤拆解为 6 个执行步骤。</div>
+              <div class="row gap8" style="margin-top:8px;flex-wrap:wrap">
+                <span class="chip warning-bg">待审批 1</span>
+                <span class="chip neutral-bg">执行中 0</span>
+                <span class="chip neutral-bg">方案版本 rev-2</span>
+              </div>
               <div class="row between" style="margin-top:9px">
                 <span class="small muted">8分钟前</span>
-                <span class="heartbeat"><span class="dot" style="background:#6366F1"></span>侍读 Agent · 心跳正常</span>
+                <span class="heartbeat"><span class="dot" style="background:#6366F1"></span>workflowId · wf_tofu_001</span>
               </div>
               <div class="swipe-hint">↔ 左滑可快速归档</div>
             </div>
           </article>
 
-          <article class="task-card pressable">
+          <article class="task-card pressable" data-detail="workflow" data-workflow-id="wf_deploy_032">
             <div class="accent" style="position:absolute;left:0;top:0;bottom:0;background:#10B981;width:4px"></div>
             <div class="task-body">
               <div class="row between">
-                <strong>数据报告 · Q1 用户留存</strong>
+                <strong>跨境部署方案 · 华东先行灰度</strong>
                 <span class="chip success-bg">执行中</span>
               </div>
-              <div style="margin-top:8px"><span class="dept-tag" style="color:#047857;background:#ecfdf5;border-color:#6ee7b7">📦 户部 · 度支AI</span></div>
-              <div class="small muted" style="margin-top:8px">当前动作：抓取埋点并重算 cohort，等待兵部算力节点回传报表…</div>
+              <div style="margin-top:8px"><span class="dept-tag" style="color:#047857;background:#ecfdf5;border-color:#6ee7b7">⚙️ Workflow V2 · summary projection</span></div>
+              <div class="small muted" style="margin-top:8px">当前摘要：共 8 个步骤，已完成 5 个，2 个节点执行中，汇总尚未启动。</div>
+              <div class="row gap8" style="margin-top:8px;flex-wrap:wrap">
+                <span class="chip neutral-bg">待审批 0</span>
+                <span class="chip success-bg">执行中 2</span>
+                <span class="chip neutral-bg">当前汇总 -</span>
+              </div>
               <div class="row between" style="margin-top:9px">
                 <span class="small muted">21分钟前</span>
-                <span class="heartbeat"><span class="dot" style="background:#10B981"></span>都水 Agent · 持续执行</span>
+                <span class="heartbeat"><span class="dot" style="background:#10B981"></span>workflowId · wf_deploy_032</span>
               </div>
               <div class="swipe-hint">↔ 左滑可快速归档</div>
             </div>
           </article>
 
-          <article class="task-card pressable">
+          <article class="task-card pressable" data-detail="workflow" data-workflow-id="wf_mail_118">
             <div class="accent" style="position:absolute;left:0;top:0;bottom:0;background:#EF4444;width:4px"></div>
             <div class="task-body">
               <div class="row between">
                 <strong>邮件文案 · 客诉危机回应</strong>
-                <span class="chip danger-bg">待评审</span>
+                <span class="chip warning-bg">方案中</span>
               </div>
-              <div style="margin-top:8px"><span class="dept-tag" style="color:#b91c1c;background:#fef2f2;border-color:#fca5a5">🧾 礼部 · 宣示AI</span></div>
-              <div class="small muted" style="margin-top:8px">当前动作：门下省要求补充法律措辞，等待刑部词条核验…</div>
+              <div style="margin-top:8px"><span class="dept-tag" style="color:#b45309;background:#fffbeb;border-color:#fcd34d">📝 Workflow V2 · summary projection</span></div>
+              <div class="small muted" style="margin-top:8px">当前摘要：已产出首版草稿，等待方案审阅并补充风险措辞策略。</div>
               <div class="row between" style="margin-top:9px">
                 <span class="small muted">1小时前</span>
-                <span class="heartbeat"><span class="dot" style="background:#EF4444"></span>给事 Agent · 待复核</span>
+                <span class="heartbeat"><span class="dot" style="background:#F59E0B"></span>workflowId · wf_mail_118</span>
+              </div>
+              <div class="swipe-hint">↔ 左滑可快速归档</div>
+            </div>
+          </article>
+
+          <article class="task-card pressable" data-detail="workflow">
+            <div class="accent" style="position:absolute;left:0;top:0;bottom:0;background:#9CA3AF;width:4px"></div>
+            <div class="task-body">
+              <div class="row between">
+                <strong>历史任务映射中 · 风险例行巡检</strong>
+                <span class="chip neutral-bg">同步中</span>
+              </div>
+              <div style="margin-top:8px"><span class="dept-tag" style="color:#57534e;background:#f5f5f4;border-color:#e7e5e4">🧭 Workflow V2 · resolver</span></div>
+              <div class="small muted" style="margin-top:8px">当前摘要：该条目尚未解析到 workflowId，点击后应进入“工作流数据待同步”提示态。</div>
+              <div class="row between" style="margin-top:9px">
+                <span class="small muted">刚刚</span>
+                <span class="heartbeat"><span class="dot" style="background:#9CA3AF"></span>workflowId · 待同步</span>
               </div>
               <div class="swipe-hint">↔ 左滑可快速归档</div>
             </div>
           </article>
         </div>
 
-        <button class="fab pressable" title="新建任务">＋</button>
       </section>
 
       <section class="page" id="page-detail">
         <div class="detail-header" id="detailHeader">
-          <h2>跨境部署风险评议令</h2>
+          <h2>豆腐工艺视频 · Workflow V2</h2>
           <div class="row gap8" style="margin-top:6px">
-            <span class="chip indigo-grad">审议中</span>
-            <span class="small muted">门下省 · 封驳Agent · 预计 34 分钟</span>
+            <span class="chip indigo-grad">待审批</span>
+            <span class="small muted">workflowId · wf_tofu_001 · 当前 rev-2</span>
           </div>
 
           <div class="tab-bar" id="detailTabs">
             <button class="tab-btn active" data-tab="overview">概览</button>
-            <button class="tab-btn" data-tab="result">📄 结果</button>
-            <button class="tab-btn" data-tab="flow">🔄 流程</button>
-            <button class="tab-btn" data-tab="activity">📝 活动</button>
+            <button class="tab-btn" data-tab="plan">方案</button>
+            <button class="tab-btn" data-tab="execution">执行</button>
+            <button class="tab-btn" data-tab="assembly">汇总</button>
+            <button class="tab-btn" data-tab="activity">动态</button>
           </div>
         </div>
 
         <div class="tab-panel active" id="tab-overview">
           <article class="card">
             <strong>当前阶段</strong>
-            <div style="margin-top:6px">🧠 门下省 · 封驳司正在比对执行前提与资源约束，输出驳议意见草案。</div>
+            <div style="margin-top:6px" id="overviewStageText">👑 方案版本 rev-2 已提交御览，等待批准后将拆为 6 个执行步骤并进入并行生成。</div>
           </article>
 
           <article class="card" style="margin-top:10px">
             <strong>流程进度</strong>
             <div class="pipeline">
-              <div class="step done">分拣</div><div class="step done">规划</div><div class="step active">审议</div>
-              <div class="step">派发</div><div class="step">执行</div><div class="step">审查</div><div class="step">完成</div>
+              <div class="step done">草拟</div>
+              <div class="step active">方案中</div>
+              <div class="step">执行中</div>
+              <div class="step">汇总中</div>
+              <div class="step">完成</div>
             </div>
           </article>
 
           <div class="key-grid">
-            <div class="key-item"><div class="small muted">状态</div><strong>审议中</strong></div>
-            <div class="key-item"><div class="small muted">部门</div><strong>门下省</strong></div>
-            <div class="key-item"><div class="small muted">ETA</div><strong>34 分钟</strong></div>
-            <div class="key-item"><div class="small muted">阻塞</div><strong style="color:#b45309">1 项</strong></div>
+            <div class="key-item"><div class="small muted">状态</div><strong id="overviewKeyState">awaiting_plan_review</strong></div>
+            <div class="key-item"><div class="small muted">当前方案</div><strong id="overviewKeyRevision">rev-2</strong></div>
+            <div class="key-item"><div class="small muted">待审批</div><strong id="overviewKeyPending" style="color:#b45309">1 项</strong></div>
+            <div class="key-item"><div class="small muted">执行中节点</div><strong id="overviewKeyRunning">0</strong></div>
           </div>
 
           <article class="card" style="margin-top:10px">
-            <div class="row between"><strong>待办进度</strong><span class="small muted">4 / 6</span></div>
-            <div class="progress" style="margin-top:8px"><div></div></div>
-            <ul style="margin:10px 0 0 16px;padding:0;font-size:13px;line-height:1.55;color:#57534e">
-              <li>✅ 收集六部资源报价</li>
-              <li>✅ 生成跨区部署方案A/B</li>
-              <li>✅ 风险矩阵打分</li>
-              <li>✅ 门下省初审</li>
-              <li>⬜ 尚书省复核签发</li>
-              <li>⬜ 自动推送飞书审批</li>
+            <div class="row between"><strong>当前摘要</strong><span class="small muted">projection</span></div>
+            <div class="progress" style="margin-top:8px"><div id="overviewProgressBar" style="width:34%"></div></div>
+            <ul id="overviewSummaryList" style="margin:10px 0 0 16px;padding:0;font-size:13px;line-height:1.55;color:#57534e">
+              <li>✅ rev-1 已驳回并归档</li>
+              <li>✅ rev-2 已补充分镜脚本与步骤列表</li>
+              <li>⬜ 等待批准当前方案</li>
+              <li>⬜ 批准后自动创建 node / candidate</li>
+              <li>⬜ 汇总 assembly 并进入最终审批</li>
             </ul>
           </article>
 
           <div class="btn-row">
+            <button class="btn pressable" style="background:#eef2ff;color:#312e81">开始规划</button>
             <button class="btn stop pressable">叫停</button>
             <button class="btn cancel pressable">取消</button>
-            <button class="btn resume pressable">恢复</button>
           </div>
         </div>
 
-        <div class="tab-panel" id="tab-result">
+        <div class="tab-panel" id="tab-plan">
           <article class="card" style="user-select:text">
-            <div class="row between"><strong>摘要结论</strong><span class="small muted">可复制</span></div>
-            <p style="margin:8px 0 0;font-size:13px;line-height:1.55;color:#44403c">建议采用「先东后西」双阶段灰度部署：优先在华东节点上线，72小时观测后再扩展西南。可将回滚风险降至 12%，成本增加约 6.8%。</p>
+            <div class="row between"><strong>方案版本</strong><span class="small muted">当前仅开放 plan 级命令</span></div>
+            <p id="planIntroText" style="margin:8px 0 0;font-size:13px;line-height:1.55;color:#44403c">rev-2：将“磨豆腐”拆为选豆、浸泡、磨浆、煮浆、点卤、压制 6 个步骤，每步后续可生成多个候选结果。</p>
             <div class="btn-row" style="margin-top:10px">
-              <button class="btn pressable" style="background:#eef2ff;color:#312e81">复制</button>
-              <button class="btn pressable" style="background:#ede9fe;color:#4c1d95">分享</button>
+              <button class="btn pressable" style="background:#ecfdf5;color:#065f46">批准方案</button>
+              <button class="btn pressable" style="background:#fef2f2;color:#b91c1c">驳回方案</button>
             </div>
-            <div class="code-box"># 执行输出（节选）
-阶段一：华东（24h）
-- 增量发布 20% 用户
-- 监控指标：错误率、响应时间、支付成功率
+            <div class="code-box" id="planDiffBox"># revision diff 摘要
+rev-1 -> rev-2
+- 补充了每个步骤的镜头目标
+- 增加了“候选结果”阶段
+- 明确最终汇总为 assembly 审批
 
-阶段二：西南（48h）
-- 放量至 60% 用户
-- 启动应急策略：异常自动切回旧版本
-
-门下省驳议：需补充 SLA 违约成本上限条款。</div>
+门下省最近意见：
+- 步骤拆解已完整
+- 建议补充每步验收标准</div>
           </article>
 
-          <div class="section-title">产出附件</div>
-          <div class="artifact"><span>📄 部署方案-v3.pdf</span><button class="mini-btn pressable">下载</button></div>
-          <div class="artifact"><span>📊 风险矩阵.xlsx</span><button class="mini-btn pressable">下载</button></div>
-          <div class="artifact"><span>🧾 审议意见.md</span><button class="mini-btn pressable">下载</button></div>
+          <div class="artifact"><span id="planRevisionPrev">🧾 rev-1 · superseded</span><button class="mini-btn pressable">查看</button></div>
+          <div class="artifact"><span id="planRevisionCurrent">🧾 rev-2 · awaiting_review</span><button class="mini-btn pressable">查看</button></div>
         </div>
 
-        <div class="tab-panel" id="tab-flow">
-          <div class="timeline" style="margin-top:10px">
-            <div class="tl-item">
-              <article class="card"><strong>分拣 → 规划</strong><div class="small muted" style="margin-top:6px">09:02 · 中书省完成任务拆解，派发户部与工部并行调研。</div></article>
+        <div class="tab-panel" id="tab-execution">
+          <article class="card">
+            <strong>执行步骤（node）</strong>
+            <div class="small muted" style="margin-top:6px">candidate / node 级动作统一落位于此（select / regenerate）。</div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn pressable" id="execSelectBtn" style="background:#eef2ff;color:#312e81">选择候选</button>
+              <button class="btn pressable" id="execRegenerateBtn" style="background:#fffbeb;color:#92400e">重新生成</button>
             </div>
-            <div class="tl-item reject">
-              <article class="card"><strong>规划 → 规划（驳回）</strong><div class="small muted" style="margin-top:6px">09:18 · 门下省指出预算约束缺失，退回补充。</div></article>
-            </div>
-            <div class="tl-item">
-              <article class="card"><strong>规划 → 审议</strong><div class="small muted" style="margin-top:6px">09:34 · 预算补充完成，进入联合审议。</div></article>
-            </div>
+          </article>
+          <div id="executionNodes">
+            <div class="artifact"><span>1. 选豆 · pending</span><button class="mini-btn pressable">查看</button></div>
+            <div class="artifact"><span>2. 浸泡 · pending</span><button class="mini-btn pressable">查看</button></div>
+            <div class="artifact"><span>3. 磨浆 · pending</span><button class="mini-btn pressable">查看</button></div>
+            <div class="artifact"><span>4. 煮浆 · pending</span><button class="mini-btn pressable">查看</button></div>
           </div>
+        </div>
+
+        <div class="tab-panel" id="tab-assembly">
+          <article class="card">
+            <strong>最终汇总（assembly）</strong>
+            <div class="small muted" id="assemblyStatusText" style="margin-top:6px">assembly 尚未生成。待方案批准并完成步骤执行后，自动进入汇总流程。</div>
+            <div class="btn-row" style="margin-top:10px">
+              <button class="btn pressable" id="assemblyApproveBtn" style="background:#ecfdf5;color:#065f46">批准汇总</button>
+              <button class="btn pressable" id="assemblyRejectBtn" style="background:#fef2f2;color:#b91c1c">驳回汇总</button>
+              <button class="btn pressable" id="assemblyReopenBtn" style="background:#eef2ff;color:#312e81">重新打开</button>
+            </div>
+          </article>
+          <div class="artifact"><span id="assemblyCurrentVersion">🎬 当前汇总版本：-</span><button class="mini-btn pressable">等待生成</button></div>
         </div>
 
         <div class="tab-panel" id="tab-activity">
-          <article class="activity pressable">
-            <div class="activity-head">🧠 推理记录 · 封驳Agent <span class="small muted">09:41</span></div>
-            <div class="activity-body">检测到风险集中于 SLA 赔付条款，建议追加「高峰时段容量保底」并将故障回滚窗口缩短至 5 分钟。</div>
-          </article>
-          <article class="activity pressable">
-            <div class="activity-head">📨 消息回执 · 尚书Agent <span class="small muted">09:36</span></div>
-            <div class="activity-body">已收到门下省驳议，吏部调度器已重排执行顺序，预计 12 分钟后完成复核签署。</div>
-          </article>
-          <article class="activity pressable">
-            <div class="activity-head">📎 文件上传 · 营造Agent <span class="small muted">09:28</span></div>
-            <div class="activity-body">上传《边缘节点容量评估-华东区》附件，包含 5 组压测曲线与峰值告警截图。</div>
-          </article>
+          <div id="activityFeed">
+            <article class="activity pressable">
+              <div class="activity-head">📝 revision 创建 · rev-2 <span class="small muted">09:41</span></div>
+              <div class="activity-body">中书省提交第 2 版方案，新增步骤拆解与候选结果结构。</div>
+            </article>
+            <article class="activity pressable">
+              <div class="activity-head">👑 decision 摘要 · 门下省驳议 <span class="small muted">09:36</span></div>
+              <div class="activity-body">上一版方案缺少分镜步骤验收标准，已退回并 supersede rev-1。</div>
+            </article>
+            <article class="activity pressable">
+              <div class="activity-head">📡 projection 对账完成 <span class="small muted">09:33</span></div>
+              <div class="activity-body">检测到 workflow 变更事件后已完成 summary/graph/timeline 对账刷新。</div>
+            </article>
+          </div>
         </div>
       </section>
 
@@ -1100,18 +1210,26 @@
         <div class="section-title">推荐模板</div>
         <div class="tpl-grid">
           <article class="tpl-card pressable create-template selected" data-template="API设计评审">
-            <div>🧩</div>
-            <h4>API设计评审</h4>
-            <div class="small muted">自动拆解需求并生成 API 草案</div>
-            <div class="tpl-meta">约 12 分钟 · 4.2¥</div>
-            <button class="mini-btn">使用模板</button>
+            <div class="tpl-head">
+              <div class="tpl-icon">🧩</div>
+              <h4>API设计评审</h4>
+            </div>
+            <p class="tpl-desc">自动拆解需求并生成 API 草案</p>
+            <div class="tpl-foot">
+              <div class="tpl-meta">约 12 分钟 · 4.2¥</div>
+              <button class="mini-btn">使用模板</button>
+            </div>
           </article>
           <article class="tpl-card pressable create-template" data-template="数据复盘报告">
-            <div>📈</div>
-            <h4>数据复盘报告</h4>
-            <div class="small muted">汇总指标、异常与行动建议</div>
-            <div class="tpl-meta">约 9 分钟 · 3.1¥</div>
-            <button class="mini-btn">使用模板</button>
+            <div class="tpl-head">
+              <div class="tpl-icon">📈</div>
+              <h4>数据复盘报告</h4>
+            </div>
+            <p class="tpl-desc">汇总指标、异常与行动建议</p>
+            <div class="tpl-foot">
+              <div class="tpl-meta">约 9 分钟 · 3.1¥</div>
+              <button class="mini-btn">使用模板</button>
+            </div>
           </article>
         </div>
 
@@ -1153,15 +1271,15 @@
         </div>
 
         <div class="tpl-grid">
-          <article class="tpl-card pressable"><div>🗓️</div><h4>周报生成</h4><div class="small muted">自动汇总部门进展与风险清单</div><div class="tpl-meta">约 6 分钟 · 2.1¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>🔍</div><h4>代码审查</h4><div class="small muted">多 Agent 交叉评议，生成修复建议</div><div class="tpl-meta">约 12 分钟 · 4.8¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>🧩</div><h4>API设计</h4><div class="small muted">从需求到 OpenAPI 草案一站式生成</div><div class="tpl-meta">约 15 分钟 · 5.3¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>🧠</div><h4>竞品分析</h4><div class="small muted">追踪策略、价格与功能差异</div><div class="tpl-meta">约 18 分钟 · 6.2¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>📈</div><h4>数据报告</h4><div class="small muted">自动产出看板要点与结论</div><div class="tpl-meta">约 9 分钟 · 3.4¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>✍️</div><h4>博客文章</h4><div class="small muted">结合品牌语调撰写内容初稿</div><div class="tpl-meta">约 11 分钟 · 2.9¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>🚀</div><h4>部署方案</h4><div class="small muted">生成灰度策略与回滚预案</div><div class="tpl-meta">约 14 分钟 · 5.0¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>📧</div><h4>邮件文案</h4><div class="small muted">对内外沟通语气智能调优</div><div class="tpl-meta">约 4 分钟 · 1.2¥</div><button class="mini-btn">一键下旨</button></article>
-          <article class="tpl-card pressable"><div>🧾</div><h4>站会摘要</h4><div class="small muted">会议录音快速提炼行动项</div><div class="tpl-meta">约 5 分钟 · 1.6¥</div><button class="mini-btn">一键下旨</button></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">🗓️</div><h4>周报生成</h4></div><p class="tpl-desc">自动汇总部门进展与风险清单</p><div class="tpl-foot"><div class="tpl-meta">约 6 分钟 · 2.1¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">🔍</div><h4>代码审查</h4></div><p class="tpl-desc">多 Agent 交叉评议，生成修复建议</p><div class="tpl-foot"><div class="tpl-meta">约 12 分钟 · 4.8¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">🧩</div><h4>API设计</h4></div><p class="tpl-desc">从需求到 OpenAPI 草案一站式生成</p><div class="tpl-foot"><div class="tpl-meta">约 15 分钟 · 5.3¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">🧠</div><h4>竞品分析</h4></div><p class="tpl-desc">追踪策略、价格与功能差异</p><div class="tpl-foot"><div class="tpl-meta">约 18 分钟 · 6.2¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">📈</div><h4>数据报告</h4></div><p class="tpl-desc">自动产出看板要点与结论</p><div class="tpl-foot"><div class="tpl-meta">约 9 分钟 · 3.4¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">✍️</div><h4>博客文章</h4></div><p class="tpl-desc">结合品牌语调撰写内容初稿</p><div class="tpl-foot"><div class="tpl-meta">约 11 分钟 · 2.9¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">🚀</div><h4>部署方案</h4></div><p class="tpl-desc">生成灰度策略与回滚预案</p><div class="tpl-foot"><div class="tpl-meta">约 14 分钟 · 5.0¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">📧</div><h4>邮件文案</h4></div><p class="tpl-desc">对内外沟通语气智能调优</p><div class="tpl-foot"><div class="tpl-meta">约 4 分钟 · 1.2¥</div><button class="mini-btn">一键下旨</button></div></article>
+          <article class="tpl-card pressable"><div class="tpl-head"><div class="tpl-icon">🧾</div><h4>站会摘要</h4></div><p class="tpl-desc">会议录音快速提炼行动项</p><div class="tpl-foot"><div class="tpl-meta">约 5 分钟 · 1.6¥</div><button class="mini-btn">一键下旨</button></div></article>
         </div>
       </section>
 
@@ -1227,7 +1345,9 @@
 
     function switchPage(name) {
       Object.values(pages).forEach(p => p.classList.remove('active'));
-      pages[name].classList.add('active');
+      const page = pages[name];
+      if (!page) return;
+      page.classList.add('active');
       navItems.forEach(n => n.classList.toggle('active', n.dataset.page === name));
     }
 
@@ -1241,12 +1361,240 @@
 
     // Open detail by clicking any task card
     const taskListEl = document.getElementById('taskList');
+    const detailTitleEl = document.querySelector('#detailHeader h2');
+    const detailMetaEl = document.querySelector('#detailHeader .row.gap8 .small.muted');
+    const detailStateChipEl = document.querySelector('#detailHeader .row.gap8 .chip');
+    const overviewStageTextEl = document.getElementById('overviewStageText');
+    const overviewKeyStateEl = document.getElementById('overviewKeyState');
+    const overviewKeyRevisionEl = document.getElementById('overviewKeyRevision');
+    const overviewKeyPendingEl = document.getElementById('overviewKeyPending');
+    const overviewKeyRunningEl = document.getElementById('overviewKeyRunning');
+    const overviewProgressBarEl = document.getElementById('overviewProgressBar');
+    const overviewSummaryListEl = document.getElementById('overviewSummaryList');
+    const planIntroTextEl = document.getElementById('planIntroText');
+    const planDiffBoxEl = document.getElementById('planDiffBox');
+    const planRevisionPrevEl = document.getElementById('planRevisionPrev');
+    const planRevisionCurrentEl = document.getElementById('planRevisionCurrent');
+    const executionNodesEl = document.getElementById('executionNodes');
+    const assemblyStatusTextEl = document.getElementById('assemblyStatusText');
+    const assemblyCurrentVersionEl = document.getElementById('assemblyCurrentVersion');
+    const activityFeedEl = document.getElementById('activityFeed');
+
+    const workflowDetailFixtures = {
+      wf_tofu_001: {
+        statusKey: 'awaiting_plan_review',
+        revision: 'rev-2',
+        pendingReview: 1,
+        runningNodes: 0,
+        progressPercent: 34,
+        stageText: '👑 方案版本 rev-2 已提交御览，等待批准后将拆为 6 个执行步骤并进入并行生成。',
+        summaryItems: [
+          '✅ rev-1 已驳回并归档',
+          '✅ rev-2 已补充分镜脚本与步骤列表',
+          '⬜ 等待批准当前方案',
+          '⬜ 批准后自动创建 node / candidate',
+          '⬜ 汇总 assembly 并进入最终审批'
+        ],
+        planIntro: 'rev-2：将“磨豆腐”拆为选豆、浸泡、磨浆、煮浆、点卤、压制 6 个步骤，每步后续可生成多个候选结果。',
+        planDiff: `# revision diff 摘要
+rev-1 -> rev-2
+- 补充了每个步骤的镜头目标
+- 增加了“候选结果”阶段
+- 明确最终汇总为 assembly 审批
+
+门下省最近意见：
+- 步骤拆解已完整
+- 建议补充每步验收标准`,
+        revisions: ['🧾 rev-1 · superseded', '🧾 rev-2 · awaiting_review'],
+        nodes: ['1. 选豆 · pending', '2. 浸泡 · pending', '3. 磨浆 · pending', '4. 煮浆 · pending'],
+        assemblyStatus: 'assembly 尚未生成。待方案批准并完成步骤执行后，自动进入汇总流程。',
+        assemblyVersion: '🎬 当前汇总版本：-',
+        activities: [
+          { head: '📝 revision 创建 · rev-2', time: '09:41', body: '中书省提交第 2 版方案，新增步骤拆解与候选结果结构。' },
+          { head: '👑 decision 摘要 · 门下省驳议', time: '09:36', body: '上一版方案缺少分镜步骤验收标准，已退回并 supersede rev-1。' },
+          { head: '📡 projection 对账完成', time: '09:33', body: '检测到 workflow 变更事件后已完成 summary/graph/timeline 对账刷新。' }
+        ]
+      },
+      wf_deploy_032: {
+        statusKey: 'executing',
+        revision: 'rev-4',
+        pendingReview: 0,
+        runningNodes: 2,
+        progressPercent: 68,
+        stageText: '⚙️ 已进入执行阶段：8 个步骤已完成 5 个，工部与兵部节点并行处理中。',
+        summaryItems: [
+          '✅ 方案 rev-4 已批准',
+          '✅ 节点 1-5 已完成并通过验收',
+          '🔄 节点 6-7 执行中',
+          '⬜ 汇总 assembly 待生成',
+          '⬜ 最终审批后归档'
+        ],
+        planIntro: 'rev-4：补充华东灰度窗口、监控指标阈值与自动回滚条件，执行路径已锁定。',
+        planDiff: `# revision diff 摘要
+rev-3 -> rev-4
+- 增加华东分批开关策略
+- 明确告警阈值与回滚触发条件
+- 下发工部/兵部并行执行单`,
+        revisions: ['🧾 rev-3 · approved', '🧾 rev-4 · executing'],
+        nodes: ['1. 环境核验 · approved', '2. 灰度脚本准备 · approved', '3. 流量切分 · approved', '4. 指标回看 · approved', '5. 回滚预演 · approved', '6. 分区扩量 · running', '7. 质量门禁复核 · running', '8. 汇总封板 · pending'],
+        assemblyStatus: 'assembly 准备中：待所有执行节点完成后自动合并产物并进入最终审阅。',
+        assemblyVersion: '🎬 当前汇总版本：asm-deploy-1 · building',
+        activities: [
+          { head: '🚚 node.dispatch · 工部', time: '10:22', body: '已向工部派发“分区扩量”执行节点。' },
+          { head: '✅ decision.approve · rev-4', time: '10:10', body: '御览通过 rev-4，流程切入 executing。' },
+          { head: '📡 projection 对账完成', time: '10:08', body: '执行节点状态已同步到 summary projection。' }
+        ]
+      },
+      wf_mail_118: {
+        statusKey: 'planning',
+        revision: 'rev-1',
+        pendingReview: 1,
+        runningNodes: 0,
+        progressPercent: 22,
+        stageText: '✍️ 首版措辞策略已产出，等待门下省审阅后进入执行拆解。',
+        summaryItems: [
+          '✅ 首版邮件草稿已生成',
+          '⬜ 门下省审阅措辞风险',
+          '⬜ 形成候选版本并选择',
+          '⬜ 汇总最终版邮件模板'
+        ],
+        planIntro: 'rev-1：已给出安抚用户、说明补偿与后续跟进三段式模板，待补充风险措辞边界。',
+        planDiff: `# revision diff 摘要
+init -> rev-1
+- 生成首版邮件文案骨架
+- 引入客诉情绪安抚语气模板
+- 待补充法务审阅提示`,
+        revisions: ['🧾 rev-0 · init', '🧾 rev-1 · awaiting_review'],
+        nodes: ['1. 关键信息抽取 · pending', '2. 草稿润色 · pending', '3. 风险措辞检查 · pending'],
+        assemblyStatus: 'assembly 尚未开始，需先完成方案审阅并进入执行阶段。',
+        assemblyVersion: '🎬 当前汇总版本：-',
+        activities: [
+          { head: '📝 revision 创建 · rev-1', time: '09:18', body: '中书省提交客诉邮件首版方案。' },
+          { head: '👀 review 排队中', time: '09:17', body: '等待门下省进行措辞与风险审阅。' },
+          { head: '📡 projection 对账完成', time: '09:15', body: '任务已切入 workflow v2 summary 视图。' }
+        ]
+      }
+    };
+
+    function resolveStateStyle(stateText) {
+      const value = String(stateText || '').toLowerCase();
+      if (value.includes('执行') || value.includes('running') || value.includes('execut')) return { cls: 'success-bg', label: '执行中' };
+      if (value.includes('待审') || value.includes('review') || value.includes('await')) return { cls: 'indigo-grad', label: '待审批' };
+      if (value.includes('方案') || value.includes('规划') || value.includes('planning')) return { cls: 'indigo-grad', label: '规划中' };
+      if (value.includes('草拟') || value.includes('draft')) return { cls: 'neutral-bg', label: '草拟中' };
+      if (value.includes('汇总') || value.includes('assembl')) return { cls: 'success-bg', label: '汇总中' };
+      if (value.includes('完成') || value.includes('done')) return { cls: 'success-bg', label: '已完成' };
+      if (value.includes('阻塞') || value.includes('block')) return { cls: 'danger-bg', label: '已阻塞' };
+      if (value.includes('取消') || value.includes('cancel')) return { cls: 'danger-bg', label: '已取消' };
+      return { cls: 'neutral-bg', label: stateText || '未知状态' };
+    }
+
+    function bindActivityExpanders() {
+      document.querySelectorAll('.activity').forEach(el => {
+        el.addEventListener('click', () => el.classList.toggle('open'));
+      });
+    }
+
+    function renderWorkflowDetail(workflowId, title, stateText) {
+      const fixture = workflowDetailFixtures[workflowId] || {
+        statusKey: stateText || 'draft',
+        revision: 'rev-1',
+        pendingReview: 0,
+        runningNodes: 0,
+        progressPercent: 12,
+        stageText: `🆕 ${title} 已创建，等待后端写入完整 workflow graph。`,
+        summaryItems: [
+          '✅ 已写入 workflowId',
+          '⬜ 等待 summary projection 首次刷新',
+          '⬜ 等待 graph/timeline 拉取'
+        ],
+        planIntro: 'rev-1：由新建入口自动生成的初始方案草稿。',
+        planDiff: `# revision diff 摘要
+init -> rev-1
+- 创建任务并初始化 workflow graph`,
+        revisions: ['🧾 rev-0 · init', '🧾 rev-1 · draft'],
+        nodes: ['1. 任务拆解 · pending'],
+        assemblyStatus: 'assembly 未开始，待执行阶段完成后生成。',
+        assemblyVersion: '🎬 当前汇总版本：-',
+        activities: [
+          { head: '🆕 workflow created', time: '刚刚', body: `workflowId=${workflowId}` },
+          { head: '📡 projection waiting', time: '刚刚', body: '等待 summary/graph/timeline 对账。' }
+        ]
+      };
+
+      // 从 fixture 中读取真实 revision，用于详情头部
+      const currentRevision = fixture.revision || 'rev-1';
+
+      if (overviewStageTextEl) overviewStageTextEl.textContent = fixture.stageText;
+      if (overviewKeyStateEl) overviewKeyStateEl.textContent = fixture.statusKey;
+      if (overviewKeyRevisionEl) overviewKeyRevisionEl.textContent = fixture.revision;
+      if (overviewKeyPendingEl) overviewKeyPendingEl.textContent = `${fixture.pendingReview} 项`;
+      if (overviewKeyRunningEl) overviewKeyRunningEl.textContent = String(fixture.runningNodes);
+      if (overviewProgressBarEl) overviewProgressBarEl.style.width = `${Math.max(5, Math.min(100, fixture.progressPercent))}%`;
+      if (overviewSummaryListEl) {
+        overviewSummaryListEl.innerHTML = fixture.summaryItems
+          .map(item => `<li>${escapeHtml(item)}</li>`)
+          .join('');
+      }
+
+      if (planIntroTextEl) planIntroTextEl.textContent = fixture.planIntro;
+      if (planDiffBoxEl) planDiffBoxEl.textContent = fixture.planDiff;
+      if (planRevisionPrevEl) planRevisionPrevEl.textContent = fixture.revisions[0] || '🧾 rev-0 · init';
+      if (planRevisionCurrentEl) planRevisionCurrentEl.textContent = fixture.revisions[1] || `🧾 ${fixture.revision} · draft`;
+
+      if (executionNodesEl) {
+        executionNodesEl.innerHTML = fixture.nodes
+          .map(node => `<div class="artifact"><span>${escapeHtml(node)}</span><button class="mini-btn pressable">查看</button></div>`)
+          .join('');
+      }
+
+      if (assemblyStatusTextEl) assemblyStatusTextEl.textContent = fixture.assemblyStatus;
+      if (assemblyCurrentVersionEl) assemblyCurrentVersionEl.textContent = fixture.assemblyVersion;
+
+      if (activityFeedEl) {
+        activityFeedEl.innerHTML = fixture.activities
+          .map(item => `
+            <article class="activity pressable">
+              <div class="activity-head">${escapeHtml(item.head)} <span class="small muted">${escapeHtml(item.time)}</span></div>
+              <div class="activity-body">${escapeHtml(item.body)}</div>
+            </article>
+          `)
+          .join('');
+      }
+      bindActivityExpanders();
+    }
+
+    function openWorkflowDetailFromCard(card) {
+      const workflowId = (card.dataset.workflowId || '').trim();
+      if (!workflowId) {
+        showToast('工作流数据待同步，请稍后重试');
+        return;
+      }
+
+      const titleNode = card.querySelector('strong');
+      const stateNode = card.querySelector('.chip');
+      const title = titleNode ? titleNode.textContent.trim() : 'Workflow V2 任务';
+      const stateText = stateNode ? stateNode.textContent.trim() : '';
+      const stateStyle = resolveStateStyle(stateText);
+
+      if (detailTitleEl) detailTitleEl.textContent = `${title} · Workflow V2`;
+      const revisionLabel = (workflowDetailFixtures[workflowId] || {}).revision || 'rev-1';
+      if (detailMetaEl) detailMetaEl.textContent = `workflowId · ${workflowId} · 当前 ${revisionLabel}`;
+      if (detailStateChipEl) {
+        detailStateChipEl.className = `chip ${stateStyle.cls}`;
+        detailStateChipEl.textContent = stateStyle.label;
+      }
+      renderWorkflowDetail(workflowId, title, stateStyle.label);
+
+      switchPage('detail');
+      navItems.forEach(n => n.classList.remove('active'));
+    }
+
     if (taskListEl) {
       taskListEl.addEventListener('click', (event) => {
         const card = event.target.closest('.task-card');
         if (!card) return;
-        switchPage('detail');
-        navItems.forEach(n => n.classList.remove('active'));
+        openWorkflowDetailFromCard(card);
       });
     }
 
@@ -1254,8 +1602,9 @@
     const tabBtns = document.querySelectorAll('#detailTabs .tab-btn');
     const tabPanels = {
       overview: document.getElementById('tab-overview'),
-      result: document.getElementById('tab-result'),
-      flow: document.getElementById('tab-flow'),
+      plan: document.getElementById('tab-plan'),
+      execution: document.getElementById('tab-execution'),
+      assembly: document.getElementById('tab-assembly'),
       activity: document.getElementById('tab-activity')
     };
 
@@ -1276,9 +1625,7 @@
     });
 
     // Activity entries expandable
-    document.querySelectorAll('.activity').forEach(el => {
-      el.addEventListener('click', () => el.classList.toggle('open'));
-    });
+    bindActivityExpanders();
 
     // Toast for quick create and FAB
     const toast = document.getElementById('toast');
@@ -1343,20 +1690,21 @@
         const actionText = selectedMode === 'template'
           ? `当前动作：已基于「${selectedTemplate}」生成执行草案，等待首轮审阅…`
           : '当前动作：已按自由输入要求拆解任务，正在生成执行路径…';
+        const workflowId = `wf_local_${Date.now().toString(36)}`;
 
         const cardHtml = `
-          <article class="task-card pressable">
+          <article class="task-card pressable" data-detail="workflow" data-workflow-id="${workflowId}">
             <div class="accent" style="position:absolute;left:0;top:0;bottom:0;background:${dotColor};width:4px"></div>
             <div class="task-body">
               <div class="row between">
                 <strong>${escapeHtml(title)}</strong>
                 <span class="chip ${statusClass}">${escapeHtml(priority === '普通' ? '规划中' : priority)}</span>
               </div>
-              <div style="margin-top:8px"><span class="dept-tag">${escapeHtml(dept)}</span></div>
+              <div style="margin-top:8px"><span class="dept-tag">⚙️ Workflow V2 · ${escapeHtml(dept)}</span></div>
               <div class="small muted" style="margin-top:8px">${escapeHtml(actionText)}</div>
               <div class="row between" style="margin-top:9px">
                 <span class="small muted">刚刚</span>
-                <span class="heartbeat"><span class="dot" style="background:${dotColor}"></span>新建 Agent · 已启动</span>
+                <span class="heartbeat"><span class="dot" style="background:${dotColor}"></span>workflowId · ${workflowId}</span>
               </div>
               <div class="swipe-hint">↔ 左滑可快速归档</div>
             </div>
@@ -1368,6 +1716,18 @@
         showToast(`已创建「${title}」`);
       });
     }
+
+    // Action matrix placement demo in execution / assembly tabs
+    const execSelectBtn = document.getElementById('execSelectBtn');
+    const execRegenerateBtn = document.getElementById('execRegenerateBtn');
+    const assemblyApproveBtn = document.getElementById('assemblyApproveBtn');
+    const assemblyRejectBtn = document.getElementById('assemblyRejectBtn');
+    const assemblyReopenBtn = document.getElementById('assemblyReopenBtn');
+    execSelectBtn?.addEventListener('click', () => showToast('已提交 node.select（演示）'));
+    execRegenerateBtn?.addEventListener('click', () => showToast('已提交 node.regenerate（演示）'));
+    assemblyApproveBtn?.addEventListener('click', () => showToast('已提交 assembly.approve（演示）'));
+    assemblyRejectBtn?.addEventListener('click', () => showToast('已提交 assembly.reject（演示）'));
+    assemblyReopenBtn?.addEventListener('click', () => showToast('已提交 assembly.reopen（演示）'));
 
     // Greeting & date
     const now = new Date();

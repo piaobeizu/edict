@@ -5,5 +5,6 @@ export 'edict_card.dart';
 export 'edict_scaffold.dart';
 export 'heartbeat_badge.dart';
 export 'mini_pipe.dart';
+export 'safe_selection_area.dart';
 export 'state_tag.dart';
 export 'toast_overlay.dart';

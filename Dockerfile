@@ -27,10 +27,17 @@ RUN npm install -g "openclaw@${OPENCLAW_VERSION}" \
 COPY backend/requirements.txt /tmp/requirements.txt
 RUN pip install --no-cache-dir -r /tmp/requirements.txt
 
+# 构建并安装 kernel wheel（走编译安装链路）
+COPY kernel/ /tmp/kernel/
+RUN python -m pip wheel --no-deps --wheel-dir /tmp/kernel-dist /tmp/kernel \
+    && python -m pip install --no-cache-dir /tmp/kernel-dist/*.whl \
+    && rm -rf /tmp/kernel /tmp/kernel-dist
+
 # 复制后端代码
 COPY backend/ /app/
 
-# 复制独立 kernel 包源码
+# 防御式兜底：确保运行时可直接 import kernel.*
+# （某些 wheel 构建场景下 package-dir 映射可能导致模块未被正确打包）
 COPY kernel/src/ /app/kernel/
 
 # 复制 Alembic 配置

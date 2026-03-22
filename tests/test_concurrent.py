@@ -138,6 +138,7 @@ class TestConcurrentStateTransitions:
         mock_task.trace_id = "JJC-RACE"
         mock_task.flow_log = []
         mock_task.updated_at = None
+        mock_task.workflow_type = "legacy"
 
         call_count = 0
 
@@ -162,6 +163,7 @@ class TestConcurrentStateTransitions:
             mock_task2.state = TaskState.Zhongshu  # Already transitioned
             mock_task2.trace_id = "JJC-RACE"
             mock_task2.flow_log = []
+            mock_task2.workflow_type = "legacy"
             return make_mock_result(mock_task2)
 
         mock_db.execute = mock_execute

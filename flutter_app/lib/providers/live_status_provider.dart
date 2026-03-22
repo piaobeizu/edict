@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../core/core.dart';
 import '../models/models.dart';
 import 'api_provider.dart';
+import 'workflow_projection_sync_provider.dart';
 
 enum TaskListFilter { active, archived, all }
 
@@ -45,7 +46,11 @@ class LiveStatusNotifier extends AsyncNotifier<LiveStatus> {
   Future<LiveStatus> _fetchLiveStatus() async {
     final api = ref.read(apiClientProvider);
     final data = await api.liveStatus();
-    return _normalizeLiveStatus(data);
+    final normalized = _normalizeLiveStatus(data);
+    ref
+        .read(workflowProjectionSyncProvider.notifier)
+        .reconcileWithTasks(normalized.tasks);
+    return normalized;
   }
 }
 

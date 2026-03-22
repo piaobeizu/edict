@@ -323,15 +323,20 @@ export default function TaskModal() {
 
           {/* Action Buttons */}
           <div className="task-actions">
-            {canStop && (
-              <>
-                <button className="btn-action btn-stop" onClick={handleStop}>⏸ 叫停任务</button>
-                <button className="btn-action btn-cancel" onClick={handleCancel}>🚫 取消任务</button>
-              </>
-            )}
-            {canResume && (
-              <button className="btn-action btn-resume" onClick={() => doTaskAction('resume', '恢复执行')}>▶️ 恢复执行</button>
-            )}
+            <div className="task-actions-row">
+              {canStop && (
+                <>
+                  <button className="btn-action btn-stop" onClick={handleStop}>⏸ 叫停任务</button>
+                  <button className="btn-action btn-cancel" onClick={handleCancel}>🚫 取消任务</button>
+                </>
+              )}
+              {canResume && (
+                <button className="btn-action btn-resume" onClick={() => doTaskAction('resume', '恢复执行')}>▶️ 恢复执行</button>
+              )}
+              {['Pending', 'Taizi', 'Zhongshu', 'Menxia', 'YuLan', 'Assigned', 'Doing', 'Review', 'Next'].includes(task.state) && (
+                <button className="btn-action" disabled={isDispatching} style={{ background: '#7c5cfc18', color: '#7c5cfc', border: '1px solid #7c5cfc44', opacity: isDispatching ? 0.4 : 1, cursor: isDispatching ? 'not-allowed' : 'pointer' }} onClick={doAdvance}>⏩ 推进到下一步</button>
+              )}
+            </div>
             {isDispatching && (
               <div style={{ width: '100%', padding: '8px 12px', background: '#3b82f615', border: '1px solid #3b82f633', borderRadius: 8, marginBottom: 8, fontSize: 12, color: '#60a5fa', display: 'flex', alignItems: 'center', gap: 8 }}>
                 <span className="la-dot" style={{ width: 8, height: 8 }} />
@@ -353,9 +358,6 @@ export default function TaskModal() {
                 <button className="btn-action" disabled={isDispatching} style={{ background: '#2ecc8a22', color: '#2ecc8a', border: '1px solid #2ecc8a44', opacity: isDispatching ? 0.4 : 1, cursor: isDispatching ? 'not-allowed' : 'pointer' }} onClick={() => doReview('approve')}>✅ 准奏</button>
                 <button className="btn-action" disabled={isDispatching} style={{ background: '#ff527022', color: '#ff5270', border: '1px solid #ff527044', opacity: isDispatching ? 0.4 : 1, cursor: isDispatching ? 'not-allowed' : 'pointer' }} onClick={() => doReview('reject')}>🚫 封驳</button>
               </>
-            )}
-            {['Pending', 'Taizi', 'Zhongshu', 'Menxia', 'YuLan', 'Assigned', 'Doing', 'Review', 'Next'].includes(task.state) && (
-              <button className="btn-action" disabled={isDispatching} style={{ background: '#7c5cfc18', color: '#7c5cfc', border: '1px solid #7c5cfc44', opacity: isDispatching ? 0.4 : 1, cursor: isDispatching ? 'not-allowed' : 'pointer' }} onClick={doAdvance}>⏩ 推进到下一步</button>
             )}
           </div>
 

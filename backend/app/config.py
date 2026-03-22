@@ -35,6 +35,7 @@ class Settings(BaseSettings):
     dispatch_timeout_sec: int = 300
     heartbeat_interval_sec: int = 30
     scheduler_scan_interval_seconds: int = 60
+    workflow_workers_inprocess: bool = True
 
     # ── 飞书 ──
     feishu_deliver: bool = True

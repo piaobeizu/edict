@@ -1,18 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/core.dart';
 import '../../models/models.dart';
 import '../../providers/providers.dart';
+import 'mobile_tokens.dart';
 import 'mobile_ui_kit.dart';
 import 'mobile_surface.dart';
 
-final _mobileTaskStateFilterProvider =
-    StateProvider.autoDispose<String?>((_) => null);
-final _mobileTaskSearchQueryProvider =
-    StateProvider.autoDispose<String>((_) => '');
-
-class MobileTaskListScreen extends ConsumerWidget {
+class MobileTaskListScreen extends ConsumerStatefulWidget {
   const MobileTaskListScreen({
     super.key,
     required this.onTaskTap,
@@ -29,28 +27,92 @@ class MobileTaskListScreen extends ConsumerWidget {
   final bool showFab;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<MobileTaskListScreen> createState() => _MobileTaskListScreenState();
+}
+
+class _MobileTaskListScreenState extends ConsumerState<MobileTaskListScreen> {
+  final ScrollController _listController = ScrollController();
+  Timer? _focusClearTimer;
+  String? _lastScheduledFocusId;
+
+  @override
+  void dispose() {
+    _focusClearTimer?.cancel();
+    _listController.dispose();
+    super.dispose();
+  }
+
+  void _scheduleFocusHandling(String focusedTaskId) {
+    if (_lastScheduledFocusId == focusedTaskId) {
+      return;
+    }
+    _lastScheduledFocusId = focusedTaskId;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (_listController.hasClients) {
+        _listController.animateTo(
+          0,
+          duration: const Duration(milliseconds: 320),
+          curve: Curves.easeOutCubic,
+        );
+      }
+    });
+
+    _focusClearTimer?.cancel();
+    _focusClearTimer = Timer(const Duration(seconds: 6), () {
+      if (!mounted) return;
+      final current = ref.read(mobileFocusedTaskIdProvider);
+      if (current == focusedTaskId) {
+        ref.read(mobileFocusedTaskIdProvider.notifier).state = null;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final liveStatusAsync = ref.watch(liveStatusProvider);
     final topFilter = ref.watch(edictFilterProvider);
     final baseTasks = ref.watch(filteredEdictsProvider);
-    final stateFilter = ref.watch(_mobileTaskStateFilterProvider);
-    final query =
-        ref.watch(_mobileTaskSearchQueryProvider).trim().toLowerCase();
+    final stateFilter = ref.watch(mobileTaskStateFilterProvider);
+    final focusedTaskId = ref.watch(mobileFocusedTaskIdProvider);
+    final queryText = ref.watch(mobileTaskSearchQueryProvider).trim();
+    final queryTerms = _splitQueryTerms(queryText);
+
+    if ((focusedTaskId ?? '').isNotEmpty) {
+      _scheduleFocusHandling(focusedTaskId!);
+    } else if (_lastScheduledFocusId != null) {
+      _lastScheduledFocusId = null;
+      _focusClearTimer?.cancel();
+    }
 
     final availableStates = _collectStates(baseTasks);
     final tasks = baseTasks.where((task) {
-      if (stateFilter != null && task.state != stateFilter) return false;
-      if (query.isNotEmpty && !task.title.toLowerCase().contains(query)) {
+      if (stateFilter != null && !_matchesStateFilter(task.state, stateFilter)) {
+        return false;
+      }
+      if (queryTerms.isNotEmpty && !_matchesTaskQuery(task, queryTerms)) {
         return false;
       }
       return true;
     }).toList(growable: false);
+    final syncHints = ref.watch(workflowProjectionSyncProvider);
+    tasks.sort((a, b) {
+      if ((focusedTaskId ?? '').isNotEmpty) {
+        if (a.id == focusedTaskId && b.id != focusedTaskId) return -1;
+        if (b.id == focusedTaskId && a.id != focusedTaskId) return 1;
+      }
+      return compareTasksByWorkflowSyncHint(
+        left: a,
+        right: b,
+        hints: syncHints,
+      );
+    });
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFAFAF9),
+      backgroundColor: MobileUiTokens.pageBg,
       body: MobileImmersiveBackground(
-        child: SafeArea(
-          child: Stack(
+        child: Stack(
             children: [
               Column(
                 children: [
@@ -60,27 +122,46 @@ class MobileTaskListScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         _SearchBar(
-                          query: ref.watch(_mobileTaskSearchQueryProvider),
+                          query: ref.watch(mobileTaskSearchQueryProvider),
                           onChanged: (value) => ref
-                              .read(_mobileTaskSearchQueryProvider.notifier)
+                              .read(mobileTaskSearchQueryProvider.notifier)
                               .state = value,
                         ),
-                        const SizedBox(height: 12),
+                        if (queryText.isNotEmpty) ...[
+                          const SizedBox(height: MobileUiTokens.gap8),
+                          _ActiveSearchBanner(
+                            query: queryText,
+                            hitCount: tasks.length,
+                            onClear: () => ref
+                                .read(mobileTaskSearchQueryProvider.notifier)
+                                .state = '',
+                          ),
+                        ],
+                        if ((stateFilter ?? '').isNotEmpty) ...[
+                          const SizedBox(height: MobileUiTokens.gap8),
+                          _ActiveStateBanner(
+                            label: _stateFilterDisplayLabel(stateFilter!),
+                            onClear: () => ref
+                                .read(mobileTaskStateFilterProvider.notifier)
+                                .state = null,
+                          ),
+                        ],
+                        const SizedBox(height: MobileUiTokens.gap12),
                         _TopFilterBar(
                           filter: topFilter,
                           onChanged: (next) {
                             ref.read(edictFilterProvider.notifier).state = next;
                             ref
-                                .read(_mobileTaskStateFilterProvider.notifier)
+                                .read(mobileTaskStateFilterProvider.notifier)
                                 .state = null;
                           },
                         ),
-                        const SizedBox(height: 10),
+                        const SizedBox(height: MobileUiTokens.gap10),
                         _StateFilterChips(
                           states: availableStates,
                           selectedState: stateFilter,
                           onChanged: (state) => ref
-                              .read(_mobileTaskStateFilterProvider.notifier)
+                              .read(mobileTaskStateFilterProvider.notifier)
                               .state = state,
                         ),
                       ],
@@ -102,20 +183,28 @@ class MobileTaskListScreen extends ConsumerWidget {
                           onRefresh: () =>
                               ref.read(liveStatusProvider.notifier).refresh(),
                           child: ListView.separated(
+                            controller: _listController,
                             physics: const AlwaysScrollableScrollPhysics(),
-                            padding: const EdgeInsets.fromLTRB(16, 4, 16, 94),
+                            padding: MobileUiTokens.pagePadding,
                             itemCount: tasks.length,
                             separatorBuilder: (_, __) =>
-                                const SizedBox(height: 10),
+                                const SizedBox(height: MobileUiTokens.gap10),
                             itemBuilder: (context, index) {
                               final task = tasks[index];
                               return _TaskCard(
                                 key: ValueKey(task.id),
                                 task: task,
-                                onTap: () => onTaskTap(task.id),
-                                onArchiveTask: onArchiveTask,
+                                queryTerms: queryTerms,
+                                focused: focusedTaskId == task.id,
+                                onTap: () {
+                                  ref.read(mobileFocusedTaskIdProvider.notifier).state =
+                                      null;
+                                  widget.onTaskTap(task.id);
+                                },
+                                onArchiveTask: widget.onArchiveTask,
                                 enableSwipeArchive:
-                                    enableSwipeArchive && onArchiveTask != null,
+                                    widget.enableSwipeArchive &&
+                                    widget.onArchiveTask != null,
                               );
                             },
                           ),
@@ -125,15 +214,14 @@ class MobileTaskListScreen extends ConsumerWidget {
                   ),
                 ],
               ),
-              if (showFab)
+              if (widget.showFab)
                 Positioned(
-                  right: 20,
+                  right: 18,
                   bottom: 92,
-                  child: _GradientFab(onTap: onCreateTap),
+                  child: _GradientFab(onTap: widget.onCreateTap),
                 ),
             ],
           ),
-        ),
       ),
     );
   }
@@ -174,6 +262,106 @@ class _SearchBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           borderSide: const BorderSide(color: Color(0xFF4F46E5), width: 1.3),
         ),
+      ),
+    );
+  }
+}
+
+class _ActiveSearchBanner extends StatelessWidget {
+  const _ActiveSearchBanner({
+    required this.query,
+    required this.hitCount,
+    required this.onClear,
+  });
+
+  final String query;
+  final int hitCount;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEEF2FF),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFC7D2FE)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.filter_alt_rounded, size: 16, color: Color(0xFF4338CA)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '当前搜索：$query · 命中 $hitCount 条',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF3730A3),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 28),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('清空'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ActiveStateBanner extends StatelessWidget {
+  const _ActiveStateBanner({
+    required this.label,
+    required this.onClear,
+  });
+
+  final String label;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF7ED),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: const Color(0xFFFED7AA)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.tune_rounded, size: 16, color: Color(0xFFB45309)),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              '状态筛选：$label',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF9A3412),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: onClear,
+            style: TextButton.styleFrom(
+              minimumSize: const Size(0, 28),
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            child: const Text('清空'),
+          ),
+        ],
       ),
     );
   }
@@ -240,11 +428,7 @@ class _SegmentItem extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 10),
           decoration: BoxDecoration(
             gradient: selected
-                ? const LinearGradient(
-                    colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  )
+                ? MobileUiTokens.primaryGradient
                 : null,
             color: selected ? null : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
@@ -355,22 +539,27 @@ class _StateChip extends StatelessWidget {
   }
 }
 
-class _TaskCard extends StatelessWidget {
+class _TaskCard extends ConsumerWidget {
   const _TaskCard({
     super.key,
     required this.task,
+    required this.queryTerms,
+    required this.focused,
     required this.onTap,
     required this.enableSwipeArchive,
     required this.onArchiveTask,
   });
 
   final Task task;
+  final List<String> queryTerms;
+  final bool focused;
   final VoidCallback onTap;
   final bool enableSwipeArchive;
   final Future<void> Function(Task task)? onArchiveTask;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final syncHints = ref.watch(workflowProjectionSyncProvider);
     final content = Material(
       color: Colors.white,
       borderRadius: BorderRadius.circular(16),
@@ -380,7 +569,18 @@ class _TaskCard extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [MobileImmersiveBackground.cardShadow],
+            border: focused
+                ? Border.all(color: const Color(0xFF6366F1), width: 1.3)
+                : null,
+            boxShadow: [
+              MobileImmersiveBackground.cardShadow,
+              if (focused)
+                const BoxShadow(
+                  color: Color(0x306366F1),
+                  blurRadius: 14,
+                  offset: Offset(0, 6),
+                ),
+            ],
           ),
           child: Row(
             children: [
@@ -403,10 +603,10 @@ class _TaskCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Expanded(
-                            child: Text(
-                              task.title.isEmpty ? '(无标题任务)' : task.title,
+                            child: _HighlightedText(
+                              text: task.title.isEmpty ? '(无标题任务)' : task.title,
+                              queryTerms: queryTerms,
                               maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,
@@ -424,15 +624,30 @@ class _TaskCard extends StatelessWidget {
                         spacing: 6,
                         runSpacing: 6,
                         children: [
-                          _DeptTag(dept: task.org),
+                          _DeptTag(dept: task.org, queryTerms: queryTerms),
+                          if (shouldShowWorkflowProjectionSyncBadge(
+                            task: task,
+                            hints: syncHints,
+                          ))
+                            const MobilePillTag(
+                              text: '同步中',
+                              background: Color(0xFFFFF7ED),
+                              foreground: Color(0xFFB45309),
+                            ),
+                          if (focused)
+                            const MobilePillTag(
+                              text: '新创建',
+                              background: Color(0xFFEEF2FF),
+                              foreground: Color(0xFF4338CA),
+                            ),
                           if (task.archived) const _TinyArchivedTag(),
                         ],
                       ),
                       const SizedBox(height: 10),
-                      Text(
-                        _shortNow(task.now),
+                      _HighlightedText(
+                        text: _shortNow(task.now),
+                        queryTerms: queryTerms,
                         maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
                           color: Color(0xFF64748B),
                           fontSize: 12,
@@ -547,9 +762,10 @@ class _StatePill extends StatelessWidget {
 }
 
 class _DeptTag extends StatelessWidget {
-  const _DeptTag({required this.dept});
+  const _DeptTag({required this.dept, required this.queryTerms});
 
   final String dept;
+  final List<String> queryTerms;
 
   @override
   Widget build(BuildContext context) {
@@ -561,8 +777,10 @@ class _DeptTag extends StatelessWidget {
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: color.withValues(alpha: 0.35)),
       ),
-      child: Text(
-        dept,
+      child: _HighlightedText(
+        text: dept,
+        queryTerms: queryTerms,
+        maxLines: 1,
         style: TextStyle(
           color: color.withValues(alpha: 0.85),
           fontSize: 11,
@@ -571,6 +789,100 @@ class _DeptTag extends StatelessWidget {
       ),
     );
   }
+}
+
+class _HighlightedText extends StatelessWidget {
+  const _HighlightedText({
+    required this.text,
+    required this.queryTerms,
+    required this.style,
+    this.maxLines,
+  });
+
+  final String text;
+  final List<String> queryTerms;
+  final TextStyle style;
+  final int? maxLines;
+
+  @override
+  Widget build(BuildContext context) {
+    if (queryTerms.isEmpty || text.isEmpty) {
+      return Text(
+        text,
+        maxLines: maxLines,
+        overflow: TextOverflow.ellipsis,
+        style: style,
+      );
+    }
+
+    final spans = _buildHighlightSpans(
+      text: text,
+      queryTerms: queryTerms,
+      normalStyle: style,
+      highlightStyle: style.copyWith(
+        color: const Color(0xFF4338CA),
+        fontWeight: FontWeight.w800,
+      ),
+    );
+
+    return Text.rich(
+      TextSpan(children: spans),
+      maxLines: maxLines,
+      overflow: TextOverflow.ellipsis,
+    );
+  }
+}
+
+List<InlineSpan> _buildHighlightSpans({
+  required String text,
+  required List<String> queryTerms,
+  required TextStyle normalStyle,
+  required TextStyle highlightStyle,
+}) {
+  final terms = queryTerms.toSet().toList(growable: false)
+    ..sort((a, b) => b.length.compareTo(a.length));
+  final lowerText = text.toLowerCase();
+  final spans = <InlineSpan>[];
+  var start = 0;
+  while (start < text.length) {
+    final match = _nextMatch(lowerText, terms, start);
+    if (match == null) {
+      spans.add(TextSpan(text: text.substring(start), style: normalStyle));
+      break;
+    }
+    final index = match.$1;
+    final end = match.$2;
+    if (index > start) {
+      spans.add(TextSpan(
+        text: text.substring(start, index),
+        style: normalStyle,
+      ));
+    }
+    spans.add(TextSpan(
+      text: text.substring(index, end),
+      style: highlightStyle,
+    ));
+    start = end;
+  }
+  return spans;
+}
+
+(int, int)? _nextMatch(String lowerText, List<String> queryTerms, int from) {
+  int? bestIndex;
+  int? bestEnd;
+  for (final term in queryTerms) {
+    final index = lowerText.indexOf(term, from);
+    if (index < 0) continue;
+    final end = index + term.length;
+    if (bestIndex == null ||
+        index < bestIndex ||
+        (index == bestIndex && end > (bestEnd ?? end))) {
+      bestIndex = index;
+      bestEnd = end;
+    }
+  }
+  if (bestIndex == null || bestEnd == null) return null;
+  return (bestIndex, bestEnd);
 }
 
 class _TinyArchivedTag extends StatelessWidget {
@@ -674,20 +986,16 @@ class _GradientFab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Material(
       color: Colors.transparent,
-      borderRadius: BorderRadius.circular(28),
+      borderRadius: BorderRadius.circular(20),
       child: InkWell(
-        borderRadius: BorderRadius.circular(28),
+        borderRadius: BorderRadius.circular(20),
         onTap: onTap,
         child: Ink(
-          width: 56,
-          height: 56,
+          width: 58,
+          height: 58,
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6366F1), Color(0xFF4338CA)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(28),
+            gradient: MobileUiTokens.primaryGradient,
+            borderRadius: BorderRadius.circular(20),
             boxShadow: [
               BoxShadow(
                 color: const Color(0xFF4338CA).withValues(alpha: 0.35),
@@ -877,5 +1185,64 @@ Color _heartbeatColor(HeartbeatStatus status) {
       return const Color(0xFF64748B);
     case HeartbeatStatus.unknown:
       return const Color(0xFF94A3B8);
+  }
+}
+
+List<String> _splitQueryTerms(String raw) {
+  return raw
+      .toLowerCase()
+      .split(RegExp(r'\s+'))
+      .map((e) => e.trim())
+      .where((e) => e.isNotEmpty)
+      .toList(growable: false);
+}
+
+bool _matchesTaskQuery(Task task, List<String> queryTerms) {
+  if (queryTerms.isEmpty) {
+    return true;
+  }
+  final fields = <String>[
+    task.title,
+    task.org,
+    task.now,
+    task.id,
+    task.state,
+    _mobileStateLabel(task.state),
+  ];
+  final loweredFields = fields.map((e) => e.toLowerCase()).toList(growable: false);
+  for (final term in queryTerms) {
+    var matched = false;
+    for (final field in loweredFields) {
+      if (field.contains(term)) {
+        matched = true;
+        break;
+      }
+    }
+    if (!matched) return false;
+  }
+  return true;
+}
+
+bool _matchesStateFilter(String taskState, String stateFilter) {
+  switch (stateFilter) {
+    case '@group:review':
+      return taskState == 'Review' || taskState == 'YuLan';
+    case '@group:attention':
+      return taskState == 'Blocked' ||
+          taskState == 'YuLan' ||
+          taskState == 'Cancelled';
+    default:
+      return taskState == stateFilter;
+  }
+}
+
+String _stateFilterDisplayLabel(String stateFilter) {
+  switch (stateFilter) {
+    case '@group:review':
+      return '待评审（审查中 + 待御览）';
+    case '@group:attention':
+      return '需要关注（阻塞 + 待御览 + 已取消）';
+    default:
+      return _mobileStateLabel(stateFilter);
   }
 }

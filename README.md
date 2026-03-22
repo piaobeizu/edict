@@ -24,7 +24,7 @@
   <img src="https://img.shields.io/badge/Agents-12_Specialized-8B5CF6?style=flat-square" alt="Agents">
   <img src="https://img.shields.io/badge/Dashboard-Real--time-F59E0B?style=flat-square" alt="Dashboard">
   <img src="https://img.shields.io/badge/License-MIT-22C55E?style=flat-square" alt="License">
-  <img src="https://img.shields.io/badge/Frontend-React_18-61DAFB?style=flat-square&logo=react&logoColor=white" alt="React">
+  <img src="https://img.shields.io/badge/Frontend-Flutter_Web-42A5F5?style=flat-square&logo=flutter&logoColor=white" alt="Flutter Web">
   <img src="https://img.shields.io/badge/Backend-FastAPI_%2B_PG_%2B_Redis-EC4899?style=flat-square" alt="Backend: FastAPI + PostgreSQL + Redis">
 </p>
 
@@ -287,7 +287,9 @@ Compose 会自动拉起：
 - ✅ FastAPI backend
 - ✅ orchestrator / dispatcher worker
 - ✅ PostgreSQL + Redis
-- ✅ React 前端（Nginx）
+- ✅ Flutter Web 前端（Nginx）
+
+> 前端维护策略：Web 前端仅维护 `flutter_app/`；`frontend/`（React）已归档，不再作为主线维护目标。
 
 #### 启动
 
@@ -297,6 +299,8 @@ Compose 会自动拉起：
 > docker compose up -d --build
 > open http://127.0.0.1:8002
 > ```
+>
+> 前端热重部署可用：`./scripts/redeploy_v2.sh frontend`（会先执行 Flutter Web 编译）；如需跳过编译：`SKIP_FLUTTER_BUILD=1 ./scripts/redeploy_v2.sh frontend`。
 
 启动并打开看板：
 
@@ -390,7 +394,8 @@ open http://127.0.0.1:8002
 ```
 edict/
 ├── backend/                    # FastAPI + workers + migration
-├── frontend/                   # React 看板前端
+├── flutter_app/                # Flutter Web 主前端（维护中）
+├── frontend/                   # React 看板前端（归档）
 ├── kernel/                     # 工作流内核（可本地 editable 安装）
 ├── agents/                     # 12 个 Agent 的 SOUL 配置
 ├── scripts/
@@ -497,7 +502,7 @@ curl http://127.0.0.1:8001/api/remote-skills-list
 
 | 特点 | 说明 |
 |------|------|
-| **React 18 前端** | TypeScript + Vite + Zustand 状态管理，多功能看板面板 |
+| **Flutter Web 前端** | Flutter + Riverpod，多功能看板面板（Web 主线） |
 | **后端服务** | FastAPI + PostgreSQL + Redis（Compose 一键启动） |
 | **Agent 思考可视** | 实时展示 Agent 的 thinking 过程、工具调用、返回结果 |
 | **一键启动** | `docker compose up -d --build` |
@@ -613,7 +618,7 @@ export https_proxy=http://your-proxy:port
 - [x] 旨意数据清洗（路径/元数据/前缀自动剥离）
 - [x] 重复任务防护 + 已完成任务保护
 - [x] 端到端测试覆盖（17 个断言）
-- [x] React 18 前端重构（TypeScript + Vite + Zustand）
+- [x] Flutter Web 前端主线（Web）
 - [x] Agent 思考过程可视化（实时 thinking / 工具调用 / 返回结果）
 - [x] 前后端分层部署（backend + frontend + workers）
 

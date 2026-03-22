@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/core.dart';
@@ -231,12 +230,11 @@ class _MemorialDetailDialog extends StatelessWidget {
                 child: FilledButton.tonal(
                   onPressed: () async {
                     final md = _buildMemorialMarkdown(task);
-                    await Clipboard.setData(ClipboardData(text: md));
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('✅ 奏折已复制为 Markdown')),
-                      );
-                    }
+                    await copyTextToClipboard(
+                      context,
+                      md,
+                      successMessage: '✅ 奏折已复制为 Markdown',
+                    );
                   },
                   child: const Text('📋 复制奏折'),
                 ),
